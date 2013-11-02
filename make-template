@@ -1,0 +1,16 @@
+JFLAGS =
+JC = javac
+.SUFFIXES: .java .class
+.java.class:
+	$(JC) $(JFLAGS) $*.java
+
+CLASSES = \
+
+RMCLASSES = \
+
+default: classes
+
+classes: $(CLASSES:.java=.class)
+
+clean:	
+	rm $(RMCLASSES)
