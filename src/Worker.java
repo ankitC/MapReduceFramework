@@ -43,12 +43,19 @@ public class Worker extends Thread {
             workingDir.delete();
         }
 
+
+        Socket socket = null;
+        try {
+            socket = masterConnection.accept();
+            System.out.println("Connected to socket!");
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.out.println("Error making connection");
+        }
+
         while (true) {
             try {
                 System.out.println("Waiting for messages...");
-                Socket socket = masterConnection.accept();
-
-                System.out.println("Connected to socket!");
 
                 ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
                 ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
@@ -109,3 +116,4 @@ public class Worker extends Thread {
         }
     }
 }
+

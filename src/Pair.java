@@ -1,4 +1,4 @@
-public class Pair<X, Y> {
+public class Pair<X extends Comparable<X>, Y extends Comparable<Y>> implements Comparable<Pair<X, Y>> {
 
     private final X x;
     private final Y y;
@@ -35,4 +35,14 @@ public class Pair<X, Y> {
         result = 31 * result + (y != null ? y.hashCode() : 0);
         return result;
     }
+
+    @Override
+    public int compareTo(Pair<X, Y> o) {
+        if (x.compareTo(o.x) == 0) {
+            return y.compareTo(o.y);
+        } else {
+            return x.compareTo(o.x);
+        }
+    }
 }
+
