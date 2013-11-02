@@ -1,0 +1,3 @@
+masterPort:15440
+masterIP:unix1.andrew.cmu.edu
+workerThreads:1
