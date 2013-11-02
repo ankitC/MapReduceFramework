@@ -13,6 +13,10 @@ public class Config {
 
     private static int workerThreads = 4;
 
+    private static int replicationFactor = 3;
+
+    private static int numSplits = 4;
+
     public static Map<String, String> getProperties() {
         return properties;
     }
@@ -47,6 +51,8 @@ public class Config {
         String registryPort = getProperty("masterPort");
         String registryIPAddress = getProperty("masterIP");
         String workerThreads = getProperty("workerThreads");
+        String replicationFactor = getProperty("replicationFactor");
+        String numSplits = getProperty("numSplits");
 
         if (registryPort != null) {
             setMasterPort(Integer.parseInt(registryPort));
@@ -58,6 +64,14 @@ public class Config {
 
         if (workerThreads != null) {
             setWorkerThreads(Integer.parseInt(workerThreads));
+        }
+
+        if (replicationFactor != null) {
+            setReplicationFactor(Integer.parseInt(replicationFactor));
+        }
+
+        if (numSplits != null) {
+            setNumSplits(Integer.parseInt(numSplits));
         }
 
         System.out.println(stringify());
@@ -85,6 +99,18 @@ public class Config {
     }
     private static void setWorkerThreads(int workerThreads) {
         Config.workerThreads = workerThreads;
+    }
+    public static int getReplicationFactor() {
+        return replicationFactor;
+    }
+    private static void setReplicationFactor(int replicationFactor) {
+        Config.replicationFactor = replicationFactor;
+    }
+    public static int getNumSplits() {
+        return numSplits;
+    }
+    private static void setNumSplits(int numSplits) {
+        Config.numSplits = numSplits;
     }
 
     public static String stringify() {

@@ -1,12 +1,13 @@
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Map;
 
 public class Worker extends Thread {
 
     private ServerSocket masterConnection;
+    private int WID = -1;
+    private File workingDir;
     //private ExecutorService executor;
 
     public static void main(String[] args) {
@@ -28,21 +29,35 @@ public class Worker extends Thread {
 
     @Override
     public void run() {
+
+        workingDir = new File("worker" + WID);
+
+        if (workingDir.exists()) {
+            File[] files = workingDir.listFiles();
+
+            if (files != null) {
+                for (File file : files) {
+                    file.delete();
+                }
+            }
+            workingDir.delete();
+        }
+
         while (true) {
             try {
-                System.out.println("Waiting for message from master...");
-                Socket master = masterConnection.accept();
+                System.out.println("Waiting for messages...");
+                Socket socket = masterConnection.accept();
 
-                System.out.println("Connected to master!");
+                System.out.println("Connected to socket!");
 
-                ObjectOutputStream out = new ObjectOutputStream(master.getOutputStream());
-                ObjectInputStream in = new ObjectInputStream(master.getInputStream());
+                ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+                ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
 
                 TaskMessage task = (TaskMessage) in.readObject();
 
-                System.out.format("Received %s task from master!\n", task.getCommand().toString());
+                System.out.format("Received %s task from socket!\n", task.getCommand().toString());
 
-                handleTask(task, out);
+                handleTask(task, in, out);
 
             } catch (IOException e) {
                 e.printStackTrace();
@@ -52,7 +67,7 @@ public class Worker extends Thread {
         }
     }
 
-    private void handleTask(TaskMessage task, ObjectOutputStream out) throws IOException {
+    private void handleTask(TaskMessage task, ObjectInputStream in, ObjectOutputStream out) throws IOException {
 
         Command command = task.getCommand();
 
@@ -64,8 +79,33 @@ public class Worker extends Thread {
             case REDUCE:
                 break;
             case HEARTBEAT:
-                out.writeObject("\"stayin' alive\"");
+                out.writeObject("\"Worker " + WID + " is stayin' alive\"");
                 break;
+            case DOWNLOAD:
+                download(task, in, out);
+                break;
+        }
+    }
+
+    private void download(TaskMessage task, ObjectInputStream in, ObjectOutputStream out) {
+
+        try {
+            Map<String, String> args = task.getArgs();
+
+            String fileBaseName = args.get("filename");
+            String filePartitionNum = args.get("partition");
+
+            FileOutputStream fos = new FileOutputStream(workingDir + File.separator + fileBaseName + filePartitionNum);
+            BufferedOutputStream bout = new BufferedOutputStream(fos);
+            byte[] buffer = new byte[1024];
+            int count;
+            while((count=in.read(buffer)) >= 0){
+                bout.write(buffer,0, count);
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }
