@@ -5,25 +5,25 @@ JC = javac
 	$(JC) $(JFLAGS) $*.java
 
 CLASSES = \
-	src/Command.java \ 
-	src/Config.java \ 
-	src/MapTask.java \ 
-	src/Master.java \ 
-	src/ReduceTask.java \ 
-	src/TaskMessage.java \ 
-	src/Worker.java \ 
-	src/WorkerConfig.java \ 
+	./Command.java \
+	./Config.java \
+	./MapTask.java \
+	./Master.java \
+	./ReduceTask.java \
+	./TaskMessage.java \
+	./Worker.java \
+	./WorkerConfig.java \
 
 
 RMCLASSES = \
-	src/Command.java \ 
-	src/Config.java \ 
-	src/MapTask.java \ 
-	src/Master.java \ 
-	src/ReduceTask.java \ 
-	src/TaskMessage.java \ 
-	src/Worker.java \ 
-	src/WorkerConfig.java \ 
+	./Command.java \
+	./Config.java \
+	./MapTask.java \
+	./Master.java \
+	./ReduceTask.java \
+	./TaskMessage.java \
+	./Worker.java \
+	./WorkerConfig.java \
 
 
 default: classes

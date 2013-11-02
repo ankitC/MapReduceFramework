@@ -30,7 +30,7 @@ public class Worker extends Thread {
     public void run() {
         while (true) {
             try {
-                System.out.println("Waiting to connect to master...");
+                System.out.println("Waiting for message from master...");
                 Socket master = masterConnection.accept();
 
                 System.out.println("Connected to master!");

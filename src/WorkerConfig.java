@@ -3,10 +3,11 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Map;
+import java.util.HashMap;
 
 public class WorkerConfig {
 
-    public static Map<String, Integer> workers;
+    public static Map<String, Integer> workers = new HashMap<String, Integer>();
 
     static {
         System.out.println("Reading worker configuration file...");
