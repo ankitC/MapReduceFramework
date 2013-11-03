@@ -3,5 +3,6 @@ public enum Command {
     DOWNLOAD,
     MAP,
     COMBINE,
-    REDUCE
+    REDUCE,
+    SHUTDOWN
 }

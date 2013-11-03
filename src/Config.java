@@ -17,6 +17,8 @@ public class Config {
 
     private static int numSplits = 4;
 
+    private static String dataDir = "data";
+
     public static Map<String, String> getProperties() {
         return properties;
     }
@@ -53,6 +55,7 @@ public class Config {
         String workerThreads = getProperty("workerThreads");
         String replicationFactor = getProperty("replicationFactor");
         String numSplits = getProperty("numSplits");
+        String dataDir = getProperty("dataDir");
 
         if (registryPort != null) {
             setMasterPort(Integer.parseInt(registryPort));
@@ -72,6 +75,10 @@ public class Config {
 
         if (numSplits != null) {
             setNumSplits(Integer.parseInt(numSplits));
+        }
+
+        if (dataDir != null) {
+            setDataDir(dataDir);
         }
 
         System.out.println(stringify());
@@ -111,6 +118,12 @@ public class Config {
     }
     private static void setNumSplits(int numSplits) {
         Config.numSplits = numSplits;
+    }
+    public static String getDataDir() {
+        return dataDir;
+    }
+    private static void setDataDir(String dataDir) {
+        Config.dataDir = dataDir;
     }
 
     public static String stringify() {

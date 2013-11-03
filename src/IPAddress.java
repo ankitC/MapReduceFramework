@@ -1,4 +1,4 @@
-public class IPAddress {
+public class IPAddress implements Comparable<IPAddress> {
 
     private Pair<String, Integer> ipAddress;
 
@@ -12,5 +12,10 @@ public class IPAddress {
 
     public Integer getPort() {
         return ipAddress.getY();
+    }
+
+    @Override
+    public int compareTo(IPAddress o) {
+        return ipAddress.compareTo(o.ipAddress);
     }
 }

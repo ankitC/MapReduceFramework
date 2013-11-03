@@ -17,11 +17,11 @@ public class Master {
     private ExecutorService executor;
 
     private Map<IPAddress, Socket> activeWorkers;
-    private Set<IPAddress> inactiveWorkers;
+    private Set<IPAddress> disconnectedWorkers;
 
     private Master() {
         activeWorkers = new ConcurrentHashMap<IPAddress, Socket>();
-        inactiveWorkers = new ConcurrentSkipListSet<IPAddress>();
+        disconnectedWorkers = new ConcurrentSkipListSet<IPAddress>();
         executor = Executors.newCachedThreadPool();
     }
 
@@ -63,11 +63,11 @@ public class Master {
                             System.out.format("Encountered exception while trying to communicate with worker at IP %s and port %d\n",
                                     a.getAddress(), a.getPort());
                             activeWorkers.remove(a);
-                            inactiveWorkers.add(a);
+                            disconnectedWorkers.add(a);
                         }
                     }
 
-                    System.out.format("%d active workers, %d inactive workers\n", activeWorkers.size(), inactiveWorkers.size());
+                    System.out.format("%d active workers, %d inactive workers\n", activeWorkers.size(), disconnectedWorkers.size());
 
                     try {
                         Thread.sleep(20000);
@@ -107,5 +107,41 @@ public class Master {
                 e1.printStackTrace();
             }
         }
+    }
+
+    void shutdown() {
+
+        System.out.println("System shutting down...");
+
+        for (Map.Entry<IPAddress, Socket> e : activeWorkers.entrySet()) {
+
+            Socket s = e.getValue();
+            IPAddress a = e.getKey();
+
+            System.out.format("Attempting to shut down worker at IP %s on port %d...\n", a.getAddress(), a.getPort());
+
+            try {
+
+                s.setSoTimeout(10000);
+
+                ObjectOutputStream out = new ObjectOutputStream(s.getOutputStream());
+                out.writeObject(new TaskMessage(Command.SHUTDOWN, null));
+
+                ObjectInputStream in = new ObjectInputStream(s.getInputStream());
+                String response = (String) in.readObject();
+
+                s.setSoTimeout(0);
+
+                System.out.println("Worker shut down");
+
+            } catch (Exception e1) {
+                System.out.println("Encountered exception while trying to shut down worker");
+            }
+        }
+
+        //@TODO cleanup
+
+        System.out.println("Shutdown complete.");
+        System.exit(0);
     }
 }

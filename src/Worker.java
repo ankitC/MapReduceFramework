@@ -6,6 +6,8 @@ import java.util.Map;
 public class Worker extends Thread {
 
     private ServerSocket masterConnection;
+
+    //@TODO assign IDs either from master (or use IP / port combo)
     private int WID = -1;
     private File workingDir;
     //private ExecutorService executor;
@@ -43,12 +45,19 @@ public class Worker extends Thread {
             workingDir.delete();
         }
 
+
+        Socket socket = null;
+        try {
+            socket = masterConnection.accept();
+            System.out.println("Connected to socket!");
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.out.println("Error making connection");
+        }
+
         while (true) {
             try {
                 System.out.println("Waiting for messages...");
-                Socket socket = masterConnection.accept();
-
-                System.out.println("Connected to socket!");
 
                 ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
                 ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
@@ -84,6 +93,10 @@ public class Worker extends Thread {
             case DOWNLOAD:
                 download(task, in, out);
                 break;
+            case SHUTDOWN:
+                out.writeObject("Shutting down");
+                //@TODO cleanup
+                System.exit(0);
         }
     }
 
@@ -92,6 +105,7 @@ public class Worker extends Thread {
         try {
             Map<String, String> args = task.getArgs();
 
+            //@TODO put arg names in a static class
             String fileBaseName = args.get("filename");
             String filePartitionNum = args.get("partition");
 
