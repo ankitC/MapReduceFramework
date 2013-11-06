@@ -18,7 +18,11 @@ public class FileManager {
 
         if (!fileDir.exists()) {
             System.out.println("Data directory does not exist!");
-            master.shutdown();
+            //master.shutdown();
+        }
+
+        for (File file : fileDir.listFiles()) {
+
         }
     }
 }

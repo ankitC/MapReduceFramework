@@ -1,16 +1,23 @@
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class Worker extends Thread {
 
+    private final int MONITOR_INTERVAL = 2000;
     private ServerSocket masterConnection;
 
     //@TODO assign IDs either from master (or use IP / port combo)
     private int WID = -1;
     private File workingDir;
-    //private ExecutorService executor;
+    private ExecutorService executor;
+    private final List<Future<?>> tasks;
+
+    private static final int NUM_SELF_THREADS = 2;
 
     public static void main(String[] args) {
 
@@ -26,7 +33,8 @@ public class Worker extends Thread {
 
     public Worker(int port) throws IOException {
         masterConnection = new ServerSocket(port);
-        //executor = Executors.newFixedThreadPool(Config.getWorkerThreads());
+        executor = Executors.newFixedThreadPool(Math.max(Config.getWorkerThreads(), NUM_SELF_THREADS));
+        tasks = Collections.synchronizedList(new ArrayList<Future<?>>());
     }
 
     @Override
@@ -55,6 +63,8 @@ public class Worker extends Thread {
             System.out.println("Error making connection");
         }
 
+        startMonitor();
+
         while (true) {
             try {
                 System.out.println("Waiting for messages...");
@@ -76,6 +86,30 @@ public class Worker extends Thread {
         }
     }
 
+    private void startMonitor() {
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                while (true) {
+                    synchronized (tasks) {
+                        for (Future<?> task : tasks) {
+                            if (task.isDone()) {
+                                tasks.remove(task);
+                            }
+                        }
+
+                        try {
+                            System.out.format("Currently have %d tasks\n", tasks.size());
+                            Thread.sleep(MONITOR_INTERVAL);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     private void handleTask(TaskMessage task, ObjectInputStream in, ObjectOutputStream out) throws IOException {
 
         Command command = task.getCommand();
@@ -89,6 +123,9 @@ public class Worker extends Thread {
                 break;
             case HEARTBEAT:
                 out.writeObject("\"Worker " + WID + " is stayin' alive\"");
+                break;
+            case CURRENT_LOAD:
+                out.writeObject(tasks.size());
                 break;
             case DOWNLOAD:
                 download(task, in, out);

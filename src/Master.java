@@ -1,3 +1,4 @@
+import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -109,7 +110,7 @@ public class Master {
         }
     }
 
-    void shutdown() {
+    private void shutdown() {
 
         System.out.println("System shutting down...");
 
@@ -143,5 +144,33 @@ public class Master {
 
         System.out.println("Shutdown complete.");
         System.exit(0);
+    }
+
+    private class FileManager {
+
+        private Map<String, Map<Integer, IPAddress>> fileDistribution;
+
+        private FileManager() {
+            fileDistribution = new ConcurrentHashMap<String, Map<Integer, IPAddress>>();
+        }
+
+        private void bootstrap() {
+
+            File fileDir = new File(Config.getDataDir());
+
+            if (!fileDir.exists()) {
+                System.out.println("Data directory does not exist!");
+                Master.this.shutdown();
+            }
+
+            File[] files = fileDir.listFiles();
+
+            if (files != null) {
+                for (File file : files) {
+                    System.out.format("File %s has %d lines\n", file.getName(), file.length());
+
+                }
+            }
+        }
     }
 }
