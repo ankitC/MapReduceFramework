@@ -1,6 +1,7 @@
-SRC=$(find src/ -iname '*.java' | sed {s/src/./g} | sort -u)
-MKE=$(cat src/Makefile | grep '.java \\' | sort -u | sed {s/\\t//g} | sed {s/"\\\\"//g})
+find src/ -iname '*.java' | sed {s/src/./g} | sort -u > SRC.tmp
+cat src/Makefile | grep '.java \\' | sort -u | sed {s/\\t//g} | sed {s/"\\\\"//g} > MKE.tmp
 
-DIFF=$(echo "$MKE" | diff --ignore-all-space - <(echo "$SRC"))
+diff --ignore-all-space SRC.tmp MKE.tmp
 
-echo "$DIFF"
+rm SRC.tmp
+rm MKE.tmp

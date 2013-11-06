@@ -8,6 +8,7 @@ then
 	else
 		echo "Makefile outdated, recompiling project..."
 		bash clean.sh
+		bash update-make.sh
 		bash package.sh
 	fi
 
