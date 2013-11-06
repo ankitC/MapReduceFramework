@@ -7,8 +7,11 @@ JC = javac
 CLASSES = \
 	./Command.java \
 	./Config.java \
+	./FileManager.java \
+	./IPAddress.java \
 	./MapTask.java \
 	./Master.java \
+	./Pair.java \
 	./ReduceTask.java \
 	./TaskMessage.java \
 	./Worker.java \
@@ -18,8 +21,11 @@ CLASSES = \
 RMCLASSES = \
 	./Command.java \
 	./Config.java \
+	./FileManager.java \
+	./IPAddress.java \
 	./MapTask.java \
 	./Master.java \
+	./Pair.java \
 	./ReduceTask.java \
 	./TaskMessage.java \
 	./Worker.java \
