@@ -13,6 +13,7 @@ public class Worker extends Thread {
 
     //@TODO assign IDs either from master (or use IP / port combo)
     private int WID = -1;
+    private int port;
     private File workingDir;
     private ExecutorService executor;
     private final List<Future<?>> tasks;
@@ -32,6 +33,7 @@ public class Worker extends Thread {
     }
 
     public Worker(int port) throws IOException {
+        this.port = port;
         masterConnection = new ServerSocket(port);
         executor = Executors.newFixedThreadPool(Math.max(Config.getWorkerThreads(), NUM_SELF_THREADS));
         tasks = Collections.synchronizedList(new ArrayList<Future<?>>());
@@ -40,6 +42,13 @@ public class Worker extends Thread {
     @Override
     public void run() {
 
+        createWorkingDir();
+        startMonitor();
+        startHeartbeatListener();
+        listen(port);
+    }
+
+    private void createWorkingDir() {
         workingDir = new File("worker" + WID);
 
         if (workingDir.exists()) {
@@ -52,18 +61,26 @@ public class Worker extends Thread {
             }
             workingDir.delete();
         }
+    }
 
+    private void startHeartbeatListener() {
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                listen(port + 1);
+            }
+        });
+    }
 
+    private void listen(int port) {
         Socket socket = null;
         try {
-            socket = masterConnection.accept();
+            socket = new ServerSocket(port + 1).accept();
             System.out.println("Connected to socket!");
         } catch (IOException e) {
             e.printStackTrace();
             System.out.println("Error making connection");
         }
-
-        startMonitor();
 
         while (true) {
             try {

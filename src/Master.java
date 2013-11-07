@@ -34,7 +34,7 @@ public class Master {
 
         System.out.println("Attempting to contact workers...");
 
-        master.findWorkers();
+        //master.findWorkers();
         master.startHeartbeat();
     }
 
@@ -46,10 +46,11 @@ public class Master {
 
                     for (Map.Entry<IPAddress, Socket> e : activeWorkers.entrySet()) {
 
-                        Socket s = e.getValue();
                         IPAddress a = e.getKey();
+                        Socket s;
 
                         try {
+                            s = new Socket(a.getAddress(), a.getPort() + 1);
                             s.setSoTimeout(10000);
 
                             ObjectOutputStream out = new ObjectOutputStream(s.getOutputStream());
@@ -71,7 +72,7 @@ public class Master {
                     System.out.format("%d active workers, %d inactive workers\n", activeWorkers.size(), disconnectedWorkers.size());
 
                     try {
-                        Thread.sleep(20000);
+                        Thread.sleep(10000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
