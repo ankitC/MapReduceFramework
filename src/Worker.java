@@ -18,7 +18,7 @@ public class Worker extends Thread {
     private ExecutorService executor;
     private final List<Future<?>> tasks;
 
-    private static final int NUM_SELF_THREADS = 2;
+    private static final int NUM_SELF_THREADS = 4;
 
     public static void main(String[] args) {
 
@@ -34,7 +34,7 @@ public class Worker extends Thread {
 
     public Worker(int port) throws IOException {
         this.port = port;
-        masterConnection = new ServerSocket(port);
+        //masterConnection = new ServerSocket(port);
         executor = Executors.newFixedThreadPool(Math.max(Config.getWorkerThreads(), NUM_SELF_THREADS));
         tasks = Collections.synchronizedList(new ArrayList<Future<?>>());
     }
@@ -45,7 +45,12 @@ public class Worker extends Thread {
         createWorkingDir();
         startMonitor();
         startHeartbeatListener();
-        listen(port);
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                listen(port);
+            }
+        });
     }
 
     private void createWorkingDir() {
@@ -75,8 +80,8 @@ public class Worker extends Thread {
     private void listen(int port) {
         Socket socket = null;
         try {
-            socket = new ServerSocket(port + 1).accept();
-            System.out.println("Connected to socket!");
+            socket = new ServerSocket(port).accept();
+            System.out.format("Connected to socket for port %d\n!", port);
         } catch (IOException e) {
             e.printStackTrace();
             System.out.println("Error making connection");
@@ -177,4 +182,5 @@ public class Worker extends Thread {
         }
     }
 }
+
 
