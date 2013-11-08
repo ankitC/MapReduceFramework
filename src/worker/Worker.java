@@ -1,3 +1,9 @@
+package worker;
+
+import io.Command;
+import config.Config;
+import io.TaskMessage;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -144,7 +150,7 @@ public class Worker extends Thread {
             case REDUCE:
                 break;
             case HEARTBEAT:
-                out.writeObject("\"Worker " + WID + " is stayin' alive\"");
+                out.writeObject("\"worker.Worker " + WID + " is stayin' alive\"");
                 break;
             case CURRENT_LOAD:
                 out.writeObject(tasks.size());

@@ -1,5 +1,7 @@
-import java.util.Map;
+package io;
+
 import java.io.Serializable;
+import java.util.Map;
 
 public class TaskMessage implements Serializable {
     private Command command;

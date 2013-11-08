@@ -1,3 +1,5 @@
+package config;
+
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -5,7 +7,7 @@ import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
 
-/* Config variables for the system */
+/* config.Config variables for the system */
 public class Config {
     private static int masterPort = 15000;
 
@@ -127,7 +129,7 @@ public class Config {
     }
 
     public static String stringify() {
-        return "Config{" +
+        return "config.Config{" +
                 "masterPort=" + masterPort +
                 ", masterIP=" + masterIP +
                 ", workerThreads=" + workerThreads +

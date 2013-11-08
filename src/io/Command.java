@@ -1,3 +1,5 @@
+package io;
+
 public enum Command {
     HEARTBEAT,
     CURRENT_LOAD,

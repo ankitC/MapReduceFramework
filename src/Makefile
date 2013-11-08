@@ -5,31 +5,31 @@ JC = javac
 	$(JC) $(JFLAGS) $*.java
 
 CLASSES = \
-	./Command.java \
-	./Config.java \
-	./MapTask.java \
-	./Master.java \
-	./ReduceTask.java \
-	./TaskMessage.java \
-	./Worker.java \
-	./WorkerConfig.java \
-	./FileManager.java \
-	./IPAddress.java \
-	./Pair.java \
+	./io.Command.java \
+	./config.Config.java \
+	./mapreduce.MapTask.java \
+	./master.Master.java \
+	./mapreduce.ReduceTask.java \
+	./io.TaskMessage.java \
+	./worker.Worker.java \
+	./config.WorkerConfig.java \
+	./master.FileManager.java \
+	./io.IPAddress.java \
+	./common.Pair.java \
 
 
 RMCLASSES = \
-	./Command.java \
-	./Config.java \
-	./MapTask.java \
-	./Master.java \
-	./ReduceTask.java \
-	./TaskMessage.java \
-	./Worker.java \
-	./WorkerConfig.java \
-	./FileManager.java \
-	./IPAddress.java \
-	./Pair.java \
+	./io.Command.java \
+	./config.Config.java \
+	./mapreduce.MapTask.java \
+	./master.Master.java \
+	./mapreduce.ReduceTask.java \
+	./io.TaskMessage.java \
+	./worker.Worker.java \
+	./config.WorkerConfig.java \
+	./master.FileManager.java \
+	./io.IPAddress.java \
+	./common.Pair.java \
 
 
 default: classes

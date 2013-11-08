@@ -1,3 +1,5 @@
+package common;
+
 public class Pair<X extends Comparable<X>, Y extends Comparable<Y>> implements Comparable<Pair<X, Y>> {
 
     private final X x;

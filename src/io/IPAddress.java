@@ -1,3 +1,7 @@
+package io;
+
+import common.Pair;
+
 public class IPAddress implements Comparable<IPAddress> {
 
     private Pair<String, Integer> ipAddress;
