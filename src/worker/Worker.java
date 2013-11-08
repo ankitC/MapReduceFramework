@@ -88,29 +88,28 @@ public class Worker extends Thread {
         try {
             socket = new ServerSocket(port).accept();
             System.out.format("Connected to socket for port %d\n!", port);
+            ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+            ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+
+            while (true) {
+                try {
+                    System.out.println("Waiting for messages...");
+
+                    TaskMessage task = (TaskMessage) in.readObject();
+
+                    System.out.format("Received %s task from socket!\n", task.getCommand().toString());
+
+                    handleTask(task, in, out);
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
+                }
+            }
         } catch (IOException e) {
             e.printStackTrace();
             System.out.println("Error making connection");
-        }
-
-        while (true) {
-            try {
-                System.out.println("Waiting for messages...");
-
-                ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
-                ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-
-                TaskMessage task = (TaskMessage) in.readObject();
-
-                System.out.format("Received %s task from socket!\n", task.getCommand().toString());
-
-                handleTask(task, in, out);
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
-            }
         }
     }
 
@@ -188,5 +187,6 @@ public class Worker extends Thread {
         }
     }
 }
+
 
 
