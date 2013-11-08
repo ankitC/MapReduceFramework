@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd ../src/
+cd src/
 
 lines=$(find . -name \*.java | sed 's/\(.*java\)/\t\1 \\/g')
 lines=$(echo "$lines" | sed 's/[\/&]/\\&/g')

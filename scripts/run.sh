@@ -1,10 +1,10 @@
 #!/bin/bash
 
-bash package.sh
+bash scripts/package.sh
 
 if [ ! -z $1 ] 
 then 
-    bash execute.sh $1 "${*:2}"
+    bash scripts/execute.sh $1 "${*:2}"
 else
 	echo "Sorry, must enter a valid program! (ex: Client, Registry, CapitalsServer)"
 fi
