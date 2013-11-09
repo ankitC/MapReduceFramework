@@ -1,13 +1,17 @@
 package worker;
 
-import io.Command;
 import config.Config;
+import io.Command;
 import io.TaskMessage;
 
 import java.io.*;
+import java.net.Inet4Address;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -18,7 +22,7 @@ public class Worker extends Thread {
     private ServerSocket masterConnection;
 
     //@TODO assign IDs either from master (or use IP / port combo)
-    private int WID = -1;
+    private String WID;
     private int port;
     private File workingDir;
     private ExecutorService executor;
@@ -43,6 +47,7 @@ public class Worker extends Thread {
         //masterConnection = new ServerSocket(port);
         executor = Executors.newFixedThreadPool(Math.max(Config.getWorkerThreads(), NUM_SELF_THREADS));
         tasks = Collections.synchronizedList(new ArrayList<Future<?>>());
+        WID = String.format("%s:%d", Inet4Address.getLocalHost().getHostAddress(), port);
     }
 
     @Override
@@ -51,12 +56,7 @@ public class Worker extends Thread {
         createWorkingDir();
         startMonitor();
         startHeartbeatListener();
-        executor.execute(new Runnable() {
-            @Override
-            public void run() {
-                listen(port);
-            }
-        });
+        listen(port);
     }
 
     private void createWorkingDir() {
@@ -71,6 +71,11 @@ public class Worker extends Thread {
                 }
             }
             workingDir.delete();
+        }
+
+        if (!workingDir.mkdir()) {
+            System.out.println("Fuck you, couldn't make working directory.\nI'M GONNA EXIT NOW");
+            System.exit(-1);
         }
     }
 
@@ -87,30 +92,29 @@ public class Worker extends Thread {
         Socket socket = null;
         try {
             socket = new ServerSocket(port).accept();
-            System.out.format("Connected to socket for port %d\n!", port);
+            System.out.format("Connected to socket for port %d!\n", port);
+            ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+            ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+
+            while (true) {
+                try {
+                    System.out.println("Waiting for messages...");
+
+                    TaskMessage task = (TaskMessage) in.readObject();
+
+                    System.out.format("Received %s task on port %d!\n", task.getCommand().toString(), port);
+
+                    handleTask(task, in, out);
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
+                }
+            }
         } catch (IOException e) {
             e.printStackTrace();
             System.out.println("Error making connection");
-        }
-
-        while (true) {
-            try {
-                System.out.println("Waiting for messages...");
-
-                ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
-                ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-
-                TaskMessage task = (TaskMessage) in.readObject();
-
-                System.out.format("Received %s task from socket!\n", task.getCommand().toString());
-
-                handleTask(task, in, out);
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
-            }
         }
     }
 
@@ -127,7 +131,7 @@ public class Worker extends Thread {
                         }
 
                         try {
-                            System.out.format("Currently have %d tasks\n", tasks.size());
+                            //System.out.format("Currently have %d tasks\n", tasks.size());
                             Thread.sleep(MONITOR_INTERVAL);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
@@ -150,7 +154,7 @@ public class Worker extends Thread {
             case REDUCE:
                 break;
             case HEARTBEAT:
-                out.writeObject("\"worker.Worker " + WID + " is stayin' alive\"");
+                out.writeObject("\tWorker" + WID + " is stayin' alive\"");
                 break;
             case CURRENT_LOAD:
                 out.writeObject(tasks.size());
@@ -172,18 +176,37 @@ public class Worker extends Thread {
 
             //@TODO put arg names in a static class
             String fileBaseName = args.get("filename");
-            String filePartitionNum = args.get("partition");
+            int filePartitionNum = Integer.parseInt(args.get("split"));
+            long fileNumBytes = Long.parseLong(args.get("numBytes"));
 
-            FileOutputStream fos = new FileOutputStream(workingDir + File.separator + fileBaseName + filePartitionNum);
-            BufferedOutputStream bout = new BufferedOutputStream(fos);
-            byte[] buffer = new byte[1024];
-            int count;
-            while((count=in.read(buffer)) >= 0){
-                bout.write(buffer,0, count);
+            //FileOutputStream fos = new FileOutputStream(workingDir + File.separator + fileBaseName + filePartitionNum);
+            //BufferedOutputStream bout = new BufferedOutputStream(fos);
+            FileWriter fw = new FileWriter(workingDir + File.separator + fileBaseName + filePartitionNum, true);
+            byte[] buffer;
+            int numBytesRead = 0;
+
+            while(numBytesRead < fileNumBytes) {
+                buffer = (byte[]) in.readObject();
+
+                numBytesRead += buffer.length;
+
+                String line = new String(buffer);
+
+                System.out.println(line);
+
+                fw.write(line);
             }
+
+            fw.close();
+
+            System.out.format("Requested download of:\n" +
+                    "\tsplit %d of file %s - %d bytes\n", filePartitionNum, fileBaseName, fileNumBytes);
+
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
     }

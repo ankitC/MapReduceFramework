@@ -6,10 +6,9 @@ import io.Command;
 import io.IPAddress;
 import io.TaskMessage;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.net.Socket;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -52,6 +51,97 @@ public class Master {
 
         master.findWorkers();
         master.startHeartbeat();
+        master.startFileManager();
+        master.startShell();
+    }
+
+    private void startShell() {
+
+        BufferedReader br =
+                new BufferedReader(new InputStreamReader(System.in));
+
+        System.out.println();
+
+        while (true) {
+            System.out.print("$ master> ");
+            handleInput(br);
+        }
+    }
+
+    private void handleInput(BufferedReader br) {
+        try {
+            String line = br.readLine();
+
+            if (line.isEmpty()) return;
+
+            String[] tokens = line.split(" ");
+            String command = tokens[0];
+
+            if (command.equals("exit")) {
+                shutdown();
+            } else if (command.equals("list")) {
+                if (tokens.length > 1) {
+                    if (tokens[1].equals("workers")) {
+                        for (IPAddress active : activeWorkers.keySet()) {
+                            System.out.format("ACTIVE %s:%d\n", active.getAddress(), active.getPort());
+                        }
+                        for (IPAddress disconnected : disconnectedWorkers) {
+                            System.out.format("DISCONNECTED %s:%d\n",
+                                    disconnected.getAddress(), disconnected.getPort());
+                        }
+                    } else if (tokens[1].equals("files")) {
+                        for (String filename : fileManager.getFileDistribution().keySet()) {
+                            findFile(filename);
+                        }
+                    } else if (tokens[1].equals("jobs")) {
+                        System.out.println("Not yet implemented");
+                    } else {
+                        System.out.println("Invalid command, " +
+                                "please choose one of (workers, files, jobs) to list");
+                    }
+                } else {
+                    System.out.println("Please specify what to list (workers, files, jobs)");
+                }
+            } else if (command.equals("find")) {
+                if (tokens.length > 2) {
+                    if (tokens[1].equals("file")) {
+                        findFile(tokens[2]);
+                    } else if (tokens[1].equals("job")) {
+                        System.out.println("Not yet implemented");
+                    } else {
+                        System.out.println("Please specify one of (worker, file, job) to find, " +
+                                "along with its name / ID");
+                    }
+                } else {
+                    System.out.println("Please specify what to find (worker, file, job) " +
+                            "along with its name / ID");
+                }
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void findFile(String token) {
+        Map<Integer,List<IPAddress>> locations =
+                fileManager.getFileDistribution().get(token);
+
+        if (locations == null) {
+            System.out.println("Sorry, that file does not exist on the DFS");
+        } else {
+            System.out.format("%s is distribted across the following locations:\n",
+                    token);
+            for (Map.Entry<Integer, List<IPAddress>> location : locations.entrySet()) {
+                Integer split = location.getKey();
+                List<IPAddress> addresses = location.getValue();
+
+                for (IPAddress address : addresses) {
+                    System.out.format("\tSplit %d at IP %s:%d\n",
+                            split, address.getAddress(),address.getPort());
+                }
+            }
+        }
     }
 
     private void findWorkers() {
@@ -63,16 +153,14 @@ public class Master {
                 main = new Socket(a.getAddress(), a.getPort());
                 heartbeat = new Socket(a.getAddress(), a.getPort() + 1);
 
-                String response1 = send(a, main, Command.HEARTBEAT, null, String.class);
-                String response2 = send(a, heartbeat, Command.HEARTBEAT, null, String.class);
+                addWorker(a, main, heartbeat);
+
+                String response1 = send(a, main, Command.HEARTBEAT, null);
+                String response2 = send(a, heartbeat, Command.HEARTBEAT, null);
 
                 System.out.format("worker.Worker at IP %s on port %d responded with message %s\n", a.getAddress(), a.getPort(), response1);
                 System.out.format("\t\ton port %d responded with message %s\n", a.getPort(), response2);
 
-                /*activeWorkers.put(a, s1);
-                heartbeats.put(a, s2);*/
-
-                addWorker(a, main, heartbeat);
 
             } catch (Exception e1) {
                 e1.printStackTrace();
@@ -93,9 +181,7 @@ public class Master {
                         Socket s = e.getValue();
 
                         try {
-
-                            send(a, s, Command.HEARTBEAT, null, String.class);
-
+                            send(a, s, Command.HEARTBEAT, null);
                         } catch (Exception e1) {
                             System.out.format("Encountered exception while trying to communicate with worker at IP %s and port %d\n",
                                     a.getAddress(), a.getPort());
@@ -109,23 +195,32 @@ public class Master {
                             Socket main = new Socket(a.getAddress(), a.getPort());
                             Socket heartbeat = new Socket(a.getAddress(), a.getPort() + 1);
 
-                            send(a, heartbeat, Command.HEARTBEAT, null, String.class);
-                            if (activeWorkers.get(a) == null) {
-                                addWorker(a, main, heartbeat);
-                                System.out.format("Reconnected worker at IP %s on port %d!\n", a.getAddress(), a.getPort());
-                            }
+                            ObjectOutputStream out = new ObjectOutputStream(heartbeat.getOutputStream());
+                            ObjectInputStream in = new ObjectInputStream(heartbeat.getInputStream());
+
+                            activeOutputStreams.put(a, out);
+                            activeInputStreams.put(a, in);
+
+                            send(a, heartbeat, Command.HEARTBEAT, null);
+
+                            addWorker(a, main, heartbeat);
+
+                            System.out.format("Reconnected worker at IP %s on port %d!\n", a.getAddress(), a.getPort());
+
                         } catch (Exception e) {
+                            System.out.println("Could not reconnect worker");
                             removeWorker(a);
                         }
 
                     }
 
-                    System.out.format("%d active workers, %d inactive workers\n", activeWorkers.size(), disconnectedWorkers.size());
+                    //System.out.format("%d active workers, %d inactive workers\n", activeWorkers.size(), disconnectedWorkers.size());
 
                     try {
                         Thread.sleep(1000);
                     } catch (InterruptedException e) {
-                        e.printStackTrace();
+                        System.out.println("Stopping heartbeats (oh no, a heart attack!");
+                        return;
                     }
                 }
             }
@@ -147,6 +242,8 @@ public class Master {
 
         System.out.println("System shutting down...");
 
+        executor.shutdownNow();
+
         for (Map.Entry<IPAddress, Socket> e : activeWorkers.entrySet()) {
 
             Socket s = e.getValue();
@@ -155,25 +252,24 @@ public class Master {
             System.out.format("Attempting to shut down worker at IP %s on port %d...\n", a.getAddress(), a.getPort());
 
             try {
-
-                s.setSoTimeout(10000);
-
-                ObjectOutputStream out = new ObjectOutputStream(s.getOutputStream());
-                out.writeObject(new TaskMessage(Command.SHUTDOWN, null));
-
-                ObjectInputStream in = new ObjectInputStream(s.getInputStream());
-                String response = (String) in.readObject();
-
-                s.setSoTimeout(0);
-
-                System.out.println("worker.Worker shut down");
+                send(a, s, Command.SHUTDOWN, null);
+                System.out.println("worker shut down");
 
             } catch (Exception e1) {
                 System.out.println("Encountered exception while trying to shut down worker");
             }
         }
 
-        //@TODO cleanup
+        System.out.println("Cleaning up resources...");
+
+
+        for (ObjectOutputStream o : activeOutputStreams.values()) {
+            try {
+                o.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
 
         System.out.println("Shutdown complete.");
         System.exit(0);
@@ -181,8 +277,12 @@ public class Master {
 
     private void addWorker(IPAddress a, Socket main, Socket heartbeat) throws IOException {
         activeWorkers.put(a, main);
-        activeOutputStreams.put(a, new ObjectOutputStream(main.getOutputStream()));
-        activeInputStreams.put(a,new ObjectInputStream(main.getInputStream()));
+        if (activeOutputStreams.get(a) == null) {
+            activeOutputStreams.put(a, new ObjectOutputStream(main.getOutputStream()));
+        }
+        if (activeInputStreams.get(a) == null) {
+            activeInputStreams.put(a,new ObjectInputStream(main.getInputStream()));
+        }
         heartbeats.put(a, heartbeat);
         disconnectedWorkers.remove(a);
     }
@@ -195,14 +295,20 @@ public class Master {
         disconnectedWorkers.add(a);
     }
 
+    private String send(IPAddress a, Socket s, Command c, Map<String, String> args)
+            throws IOException, ClassNotFoundException {
+
+        return send(a, s, c, args, String.class);
+    }
+
     private <T> T send(IPAddress a, Socket s, Command c, Map<String, String> args,
                        Class<T> type) throws IOException, ClassNotFoundException {
         s.setSoTimeout(10000);
 
-        ObjectOutputStream out = new ObjectOutputStream(s.getOutputStream());
-        out.writeObject(new TaskMessage(Command.HEARTBEAT, null));
+        ObjectOutputStream out = activeOutputStreams.get(a);
+        out.writeObject(new TaskMessage(c, args));
 
-        ObjectInputStream in = new ObjectInputStream(s.getInputStream());
+        ObjectInputStream in = activeInputStreams.get(a);
         T response = type.cast(in.readObject());
 
         s.setSoTimeout(0);
@@ -212,6 +318,14 @@ public class Master {
 
     Map<IPAddress, Socket> getActiveWorkers() {
         return activeWorkers;
+    }
+
+    ConcurrentHashMap<IPAddress, ObjectOutputStream> getActiveOutputStreams() {
+        return activeOutputStreams;
+    }
+
+    ConcurrentHashMap<IPAddress, ObjectInputStream> getActiveInputStreams() {
+        return activeInputStreams;
     }
 }
 
