@@ -362,4 +362,3 @@ public class Master {
         return activeInputStreams;
     }
 }
-

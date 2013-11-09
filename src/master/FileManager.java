@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 package master;
 
 import config.Config;
