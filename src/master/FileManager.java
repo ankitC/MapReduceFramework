@@ -1,7 +1,9 @@
 package master;
 
 import config.Config;
+import io.Command;
 import io.IPAddress;
+import io.TaskMessage;
 
 import java.io.*;
 import java.net.Socket;
@@ -54,6 +56,7 @@ public class FileManager {
                 }
 
                 int bytesPerSplit = (int) Math.ceil((double) file.length() / (double) Config.getNumSplits());
+                long bytesLeft = file.length();
 
                 for (int split = 1; split <= Config.getNumSplits(); split++) {
 
@@ -62,7 +65,7 @@ public class FileManager {
                     }
 
                     int numAssigned = 0;
-                    int bytesWritten = 0;
+                    int splitNumBytes = 0;
 
                     while (numAssigned < Config.getReplicationFactor()) {
                         while (workers.hasNext()) {
@@ -74,16 +77,27 @@ public class FileManager {
                             System.out.format("Worker at IP %s will write at most %d bytes\n",
                                     worker.getKey().getAddress(), bytesPerSplit);
 
+                            IPAddress a = worker.getKey();
+                            //Socket s = worker.getValue();
+
+                            Map<String, String> args = new HashMap<String, String>();
+                            args.put("numBytes", Long.toString(Math.min(bytesLeft, bytesPerSplit)));
+                            args.put("filename", file.getName());
+                            args.put("split", Integer.toString(split));
+
+                            int bytesWritten = 0;
+
                             try {
+                                master.getActiveOutputStreams().get(a).writeObject(
+                                        new TaskMessage(Command.DOWNLOAD, args)
+                                );
+
                                 String line;
                                 while (bytesWritten < bytesPerSplit &&
                                         (line = r.readLine()) != null) {
 
-                                    IPAddress a = worker.getKey();
-                                    //Socket s = worker.getValue();
 
-                                    //master.getActiveOutputStreams().get(worker).writeObject(line);
-
+                                    master.getActiveOutputStreams().get(a).writeObject(line.getBytes());
                                     bytesWritten += line.getBytes().length;
                                 }
                             } catch (IOException e) {
@@ -92,11 +106,12 @@ public class FileManager {
                             }
 
                             System.out.format("Mock sending split %d of file %s to worker at IP %s\n",
-                                    split, file.getName(), worker.getKey().getAddress());
+                                    split, file.getName(), a);
 
                             fileDistribution.get(file.getName()).get(split).add(worker.getKey());
                             bytesWritten = 0;
 
+                            splitNumBytes += bytesWritten;
 
                             if (++numAssigned >= Config.getReplicationFactor()) {
                                 break;
@@ -107,6 +122,9 @@ public class FileManager {
                             workers = master.getActiveWorkers().entrySet().iterator();
                         }
                     }
+
+                    splitNumBytes /= Config.getReplicationFactor();
+                    bytesLeft -= splitNumBytes;
                 }
             }
         }

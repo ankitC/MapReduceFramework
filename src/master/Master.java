@@ -1,3 +1,5 @@
+
+
 package master;
 
 import config.Config;
@@ -86,7 +88,7 @@ public class Master {
                             System.out.format("ACTIVE %s:%d\n", active.getAddress(), active.getPort());
                         }
                         for (IPAddress disconnected : disconnectedWorkers) {
-                            System.out.format("ACTIVE %s:%d\n",
+                            System.out.format("DISCONNECTED %s:%d\n",
                                     disconnected.getAddress(), disconnected.getPort());
                         }
                     } else if (tokens[1].equals("files")) {
@@ -149,22 +151,24 @@ public class Master {
             Socket main;
             Socket heartbeat;
 
+            IPAddress b = new IPAddress(a.getAddress(), a.getPort() + 1);
+
             try {
                 main = new Socket(a.getAddress(), a.getPort());
-                heartbeat = new Socket(a.getAddress(), a.getPort() + 1);
+                heartbeat = new Socket(b.getAddress(), b.getPort());
 
-                addWorker(a, main, heartbeat);
+                addWorker(a, main, b, heartbeat);
 
-                String response1 = send(a, main, Command.HEARTBEAT, null);
-                String response2 = send(a, heartbeat, Command.HEARTBEAT, null);
+                //String response1 = send(a, main, Command.HEARTBEAT, null);
+                String response2 = send(b, heartbeat, Command.HEARTBEAT, null);
 
-                System.out.format("worker.Worker at IP %s on port %d responded with message %s\n", a.getAddress(), a.getPort(), response1);
-                System.out.format("\t\ton port %d responded with message %s\n", a.getPort(), response2);
+                //System.out.format("worker.Worker at IP %s on port %d responded with message %s\n", a.getAddress(), a.getPort(), response1);
+                System.out.format("\t\ton port %d responded with message %s\n", b.getPort(), response2);
 
 
             } catch (Exception e1) {
                 e1.printStackTrace();
-                removeWorker(a);
+                removeWorker(a, b);
             }
         }
     }
@@ -177,31 +181,39 @@ public class Master {
 
                     for (Map.Entry<IPAddress, Socket> e : heartbeats.entrySet()) {
 
-                        IPAddress a = e.getKey();
+                        IPAddress b = e.getKey();
+
+                        IPAddress a = new IPAddress(b.getAddress(), b.getPort() - 1);
+
                         Socket s = e.getValue();
 
                         try {
-                            send(a, s, Command.HEARTBEAT, null);
+                            send(b, s, Command.HEARTBEAT, null);
                         } catch (Exception e1) {
                             System.out.format("Encountered exception while trying to communicate with worker at IP %s and port %d\n",
-                                    a.getAddress(), a.getPort());
-                            removeWorker(a);
+                                    b.getAddress(), b.getPort());
+                            removeWorker(a, b);
                         }
                     }
 
                     for (IPAddress a : disconnectedWorkers) {
 
-                        try {
-                            Socket main = new Socket(a.getAddress(), a.getPort());
-                            Socket heartbeat = new Socket(a.getAddress(), a.getPort() + 1);
+                        IPAddress b = new IPAddress(a.getAddress(), a.getPort() + 1);
 
-                            send(a, heartbeat, Command.HEARTBEAT, null);
-                            if (activeWorkers.get(a) == null) {
-                                addWorker(a, main, heartbeat);
-                                System.out.format("Reconnected worker at IP %s on port %d!\n", a.getAddress(), a.getPort());
-                            }
+                        try {
+
+                            Socket main = new Socket(a.getAddress(), a.getPort());
+                            Socket heartbeat = new Socket(b.getAddress(), b.getPort());
+
+                            send(b, heartbeat, Command.HEARTBEAT, null);
+
+                            addWorker(a, main, b, heartbeat);
+
+                            System.out.format("Reconnected worker at IP %s on port %d!\n", a.getAddress(), a.getPort());
+
                         } catch (Exception e) {
-                            removeWorker(a);
+                            System.out.println("Could not reconnect worker");
+                            removeWorker(a, b);
                         }
 
                     }
@@ -211,7 +223,8 @@ public class Master {
                     try {
                         Thread.sleep(1000);
                     } catch (InterruptedException e) {
-                        e.printStackTrace();
+                        System.out.println("Stopping heartbeats (oh no, a heart attack!");
+                        return;
                     }
                 }
             }
@@ -233,6 +246,8 @@ public class Master {
 
         System.out.println("System shutting down...");
 
+        executor.shutdownNow();
+
         for (Map.Entry<IPAddress, Socket> e : activeWorkers.entrySet()) {
 
             Socket s = e.getValue();
@@ -251,7 +266,6 @@ public class Master {
 
         System.out.println("Cleaning up resources...");
 
-        executor.shutdownNow();
 
         for (ObjectOutputStream o : activeOutputStreams.values()) {
             try {
@@ -265,7 +279,7 @@ public class Master {
         System.exit(0);
     }
 
-    private void addWorker(IPAddress a, Socket main, Socket heartbeat) throws IOException {
+    private void addWorker(IPAddress a, Socket main, IPAddress b, Socket heartbeat) throws IOException {
         activeWorkers.put(a, main);
         if (activeOutputStreams.get(a) == null) {
             activeOutputStreams.put(a, new ObjectOutputStream(main.getOutputStream()));
@@ -273,15 +287,23 @@ public class Master {
         if (activeInputStreams.get(a) == null) {
             activeInputStreams.put(a,new ObjectInputStream(main.getInputStream()));
         }
-        heartbeats.put(a, heartbeat);
+        if (activeOutputStreams.get(b) == null) {
+            activeOutputStreams.put(b, new ObjectOutputStream(heartbeat.getOutputStream()));
+        }
+        if (activeInputStreams.get(b) == null) {
+            activeInputStreams.put(b,new ObjectInputStream(heartbeat.getInputStream()));
+        }
+        heartbeats.put(b, heartbeat);
         disconnectedWorkers.remove(a);
     }
 
-    private void removeWorker(IPAddress a) {
+    private void removeWorker(IPAddress a, IPAddress b) {
         activeWorkers.remove(a);
         activeOutputStreams.remove(a);
         activeInputStreams.remove(a);
-        heartbeats.remove(a);
+        activeOutputStreams.remove(b);
+        activeInputStreams.remove(b);
+        heartbeats.remove(b);
         disconnectedWorkers.add(a);
     }
 
