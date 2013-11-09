@@ -1,5 +1,3 @@
-
-
 package master;
 
 import config.Config;
@@ -248,7 +246,7 @@ public class Master {
 
         executor.shutdownNow();
 
-        for (Map.Entry<IPAddress, Socket> e : activeWorkers.entrySet()) {
+        for (Map.Entry<IPAddress, Socket> e : heartbeats.entrySet()) {
 
             Socket s = e.getValue();
             IPAddress a = e.getKey();
