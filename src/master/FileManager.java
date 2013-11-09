@@ -73,7 +73,7 @@ public class FileManager {
                             fileDistribution.get(file.getName()).put(split, new ArrayList<IPAddress>());
                         }
 
-                        long pos = file.length() - bytesLeft + numLines;
+                        long pos = file.length() - bytesLeft;// + numLines;
 
                         int numAssigned = 0;
                         int splitNumBytes = 0;
@@ -110,7 +110,8 @@ public class FileManager {
 
                                     String line;
                                     while (bytesWritten < bytesPerSplit &&
-                                            (line = rfile.readLine()) != null) {
+                                            (line = readLine(rfile)) != null &&
+                                             !line.isEmpty()) {
 
                                         master.getActiveOutputStreams().get(a).writeObject(line.getBytes());
                                         bytesWritten += line.getBytes().length;
@@ -156,6 +157,23 @@ public class FileManager {
         }
 
         return true;
+    }
+
+    public String readLine(RandomAccessFile rfile) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        int i;
+        while (0 <= (i = rfile.read())) {
+            if (i == '\n') {
+                sb.append('\n');
+                break;
+            } else {
+                sb.append((char)i);
+                if (i == '\r') {
+                    break;
+                }
+            }
+        }
+        return sb.toString();
     }
 }
 

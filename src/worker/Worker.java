@@ -194,7 +194,7 @@ public class Worker extends Thread {
 
                 System.out.println(line);
 
-                fw.write(line + "\n");
+                fw.write(line);
             }
 
             fw.close();
