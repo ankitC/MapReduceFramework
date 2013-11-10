@@ -13,9 +13,14 @@ CLASSES = \
 	./io/TaskMessage.java \
 	./mapreduce/MapTask.java \
 	./mapreduce/ReduceTask.java \
-	./master/FileManager.java \
+	./mapreduce/MapReduce.java \
 	./master/Master.java \
+	./master/FileManager.java \
+	./master/Scheduler.java \
 	./worker/Worker.java \
+	./client/Client.java \
+	./client/WordCountMapTask.java \
+	./client/WordCountReduceTask.java \
 
 
 RMCLASSES = \
@@ -27,9 +32,14 @@ RMCLASSES = \
 	./io/TaskMessage.java \
 	./mapreduce/MapTask.java \
 	./mapreduce/ReduceTask.java \
-	./master/FileManager.java \
+	./mapreduce/MapReduce.java \
 	./master/Master.java \
+	./master/FileManager.java \
+	./master/Scheduler.java \
 	./worker/Worker.java \
+	./client/Client.java \
+	./client/WordCountMapTask.java \
+	./client/WordCountReduceTask.java \
 
 
 default: classes

@@ -1,5 +1,5 @@
 masterPort:15440
 masterIP:unix1.andrew.cmu.edu
-workerThreads:1
-replicationFactor:2
-numSplits:2
+workerThreads:16
+replicationFactor:3
+numSplits:3
