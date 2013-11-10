@@ -34,6 +34,8 @@ public class Master {
 
     private FileManager fileManager;
 
+    private Scheduler scheduler;
+
     private Master() {
         heartbeats = new ConcurrentHashMap<IPAddress, Socket>();
         activeWorkers = new ConcurrentHashMap<IPAddress, Socket>();
@@ -54,11 +56,60 @@ public class Master {
         master.findWorkers();
         master.startHeartbeat();
         master.startFileManager();
-        master.startListening();
+        master.startScheduler();
+        master.startWorkerTaskListener();
+        master.startClientListener();
         master.startShell();
     }
 
-    private void startListening() {
+    private void startWorkerTaskListener() {
+
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+
+                ServerSocket serverSocket = null;
+                try {
+                    serverSocket = new ServerSocket(port + 1);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    shutdown();
+                }
+
+                while (true) {
+                    Socket socket = null;
+                    try {
+                        if (serverSocket != null) {
+                            socket = serverSocket.accept();
+                            System.out.format("Connected to socket for port %d!\n", port);
+                            ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+
+                            MapReduce mapReduce = (MapReduce) in.readObject();
+                            Command completed = (Command) in.readObject();
+
+                            System.out.format("Worker at IP %s completed the %s phase of the %s MapReduce task!\n",
+                                    socket.getInetAddress().getHostAddress(), completed, mapReduce.toString());
+                            System.out.println(mapReduce.toString());
+
+                            in.close();
+
+                            scheduler.schedule(mapReduce, completed);
+
+                        } else {
+                            shutdown();
+                        }
+
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (ClassNotFoundException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        });
+    }
+
+    private void startClientListener() {
 
         executor.execute(new Runnable() {
             @Override
@@ -86,6 +137,9 @@ public class Master {
                             System.out.println(mapReduce.toString());
 
                             in.close();
+
+                            scheduler.schedule(mapReduce, null);
+
                         } else {
                             shutdown();
                         }
@@ -283,6 +337,10 @@ public class Master {
             shutdown();
             System.exit(-1);
         }
+    }
+
+    private void startScheduler() {
+        scheduler = new Scheduler(this);
     }
 
     void shutdown() {

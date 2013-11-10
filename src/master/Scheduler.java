@@ -17,14 +17,37 @@ public class Scheduler {
     private Master master;
     private FileManager fileManager;
 
+    private List<MapReduce> mapTasks;
+    private List<MapReduce> combineTasks;
+    private List<MapReduce> reduceTasks;
+
     Scheduler(Master master) {
         this.master = master;
         fileManager = master.getFileManager();
+        mapTasks = new ArrayList<MapReduce>();
+        combineTasks = new ArrayList<MapReduce>();
+        reduceTasks = new ArrayList<MapReduce>();
     }
 
-    void mapReduce(MapReduce mapReduce) throws IOException, ClassNotFoundException {
+    void schedule(MapReduce mapReduce, Command completed) throws IOException, ClassNotFoundException {
 
+        if (completed == null) {
+            map(mapReduce);
+        } else {
+            switch(completed) {
+                case MAP:
+                    break;
+                case COMBINE:
+                    break;
+                case REDUCE:
+                    break;
+                default:
+                    throw new IllegalStateException("Invalid completion status sent");
+            }
+        }
+    }
 
+    private void map(MapReduce mapReduce) throws IOException, ClassNotFoundException {
         for (File file : mapReduce.getFiles()) {
             for (int split = 1; split <= Config.getReplicationFactor(); split++) {
                 List<Pair<Integer, IPAddress>> workerLoads = new ArrayList<Pair<Integer, IPAddress>>();
@@ -42,9 +65,23 @@ public class Scheduler {
 
                 String response = master.send(a, s, mapReduce);
 
+                mapTasks.add(mapReduce);
+
                 System.out.format("Worker at IP %s responded with: %s\n", a.getAddress(), response);
             }
         }
+    }
+
+    public List<MapReduce> getMapTasks() {
+        return mapTasks;
+    }
+
+    public List<MapReduce> getCombineTasks() {
+        return combineTasks;
+    }
+
+    public List<MapReduce> getReduceTasks() {
+        return reduceTasks;
     }
 
     private int getWorkerLoad(IPAddress worker) {
