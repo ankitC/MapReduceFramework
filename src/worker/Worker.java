@@ -11,6 +11,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -64,17 +65,17 @@ public class Worker extends Thread {
 
         Map<MapReduce, Map<String, Map<Integer, Future<?>>>> m1 = taskDistribution.get(command);
         if (m1 == null) {
-            m1 = new HashMap<MapReduce, Map<String, Map<Integer, Future<?>>>>();
+            m1 = new ConcurrentHashMap<MapReduce, Map<String, Map<Integer, Future<?>>>>();
             taskDistribution.put(command, m1);
         }
         Map<String, Map<Integer, Future<?>>> m2 = m1.get(mapReduce);
         if (m2 == null) {
-            m2 = new HashMap<String, Map<Integer, Future<?>>>();
+            m2 = new ConcurrentHashMap<String, Map<Integer, Future<?>>>();
             m1.put(mapReduce, m2);
         }
         Map<Integer, Future<?>> m3 = m2.get(filename);
         if (m3 == null) {
-            m3 = new HashMap<Integer, Future<?>>();
+            m3 = new ConcurrentHashMap<Integer, Future<?>>();
             m2.put(filename, m3);
         }
         m3.put(split, task);
@@ -253,7 +254,7 @@ public class Worker extends Thread {
                 out.writeObject("\tWorker" + WID + " is stayin' alive\"");
                 break;
             case CURRENT_LOAD:
-                out.writeObject(tasks.size());
+                out.writeObject(getNumTasks());
                 break;
             case DOWNLOAD:
                 download(task, in, out);
@@ -263,6 +264,31 @@ public class Worker extends Thread {
                 //@TODO cleanup
                 System.exit(0);
         }
+    }
+
+    private int getNumTasks() {
+
+        int numTasks = 0;
+
+        for (Map.Entry<Command, Map<MapReduce, Map<String, Map<Integer, Future<?>>>>> m1
+                : taskDistribution.entrySet()) {
+
+            for (Map.Entry<MapReduce, Map<String, Map<Integer, Future<?>>>> m2
+                    : taskDistribution.get(m1.getKey()).entrySet()) {
+
+                for (Map.Entry<String, Map<Integer, Future<?>>> m3
+                        : taskDistribution.get(m1.getKey()).get(m2.getKey()).entrySet()) {
+
+                    for (Map.Entry<Integer, Future<?>> m4
+                            : taskDistribution.get(m1.getKey()).get(m2.getKey()).get(m3.getKey()).entrySet()) {
+
+                        numTasks++;
+                    }
+                }
+            }
+         }
+
+        return numTasks;
     }
 
     private void combine(TaskMessage task, ObjectInputStream in, ObjectOutputStream out) {

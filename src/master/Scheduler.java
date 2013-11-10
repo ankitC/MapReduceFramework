@@ -39,14 +39,14 @@ public class Scheduler {
             case MAP:
                 System.out.format("Now that worker at IP %s has finished phase %s of task %s, " +
                         "processing split %d of file %s, we now send it a %s task\n",
-                        address.getAddress(), completed, mapReduce, split, filename, Command.COMBINE);
+                        address.getAddress(), completed, mapReduce.getName(), split, filename, Command.COMBINE);
 
                 removeTask(address, completed, mapReduce, filename, split);
 
                 int numMapsLeft = 0;
 
                 for (String file : getFiles(address, completed, mapReduce)) {
-                    List<Integer> tasks = getTasks(address, completed, mapReduce, filename);
+                    List<Integer> tasks = getTasks(address, completed, mapReduce, file);
                     if (tasks != null) {
                         numMapsLeft += tasks.size();
                     }
@@ -61,7 +61,7 @@ public class Scheduler {
             case COMBINE:
                 System.out.format("Now that worker at IP %s has finished phase %s of task %s, " +
                         "processing split %d of file %s, we now do a global %s task\n",
-                        address.getAddress(), completed, mapReduce, split, filename, Command.REDUCE);
+                        address.getAddress(), completed, mapReduce.getName(), split, filename, Command.REDUCE);
 
                 removeTask(address, completed, mapReduce, filename, split);
 
@@ -103,7 +103,7 @@ public class Scheduler {
 
         System.out.format("For task type %s with MapReduce %s, \n" +
                 "\tsplit %d of file %s is being processed on worker at IP %s\n",
-                command, mapReduce, split, filename, address.getAddress());
+                command, mapReduce.getName(), split, filename, address.getAddress());
     }
 
     private void removeTask(IPAddress address, Command command,
@@ -193,20 +193,19 @@ public class Scheduler {
 
         try {
 
-            System.out.format("Sending worker at IP %s a CURRENT_LOAD command\n",
-                                worker.getAddress());
+            /*System.out.format("Sending worker at IP %s a CURRENT_LOAD command\n",
+                                worker.getAddress());*/
 
             master.getActiveOutputStreams().get(worker).writeObject(
                     new TaskMessage(Command.CURRENT_LOAD, null)
             );
 
-            System.out.format("Getting current load of worker at IP %s\n", 
-                                worker.getAddress());
-            
+            /*System.out.format("Getting current load of worker at IP %s\n",
+                                worker.getAddress());*/
 
             load = (Integer) master.getActiveInputStreams().get(worker).readObject();
 
-            System.out.println("\tResponded with " + load);
+            //System.out.println("\tResponded with " + load);
 
         } catch (IOException e) {
             e.printStackTrace();
