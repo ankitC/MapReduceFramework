@@ -84,16 +84,25 @@ public class Master {
                             System.out.format("Connected to socket for port %d!\n", port);
                             ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
 
-                            MapReduce mapReduce = (MapReduce) in.readObject();
                             Command completed = (Command) in.readObject();
+                            MapReduce mapReduce = (MapReduce) in.readObject();
+                            String filename = (String) in.readObject();
+                            Integer split = (Integer) in.readObject();
 
-                            System.out.format("Worker at IP %s completed the %s phase of the %s MapReduce task!\n",
-                                    socket.getInetAddress().getHostAddress(), completed, mapReduce.toString());
+                            IPAddress address = new IPAddress(
+                                    socket.getInetAddress().getHostAddress(),
+                                    socket.getPort()
+                            );
+
+                            System.out.format("Worker at IP %s completed the %s phase of the %s MapReduce task\n" +
+                                    "for split %d of file %s!\n",
+                                    socket.getInetAddress().getHostAddress(), completed, mapReduce.toString(),
+                                    split, filename);
                             System.out.println(mapReduce.toString());
 
                             in.close();
 
-                            scheduler.schedule(mapReduce, completed);
+                            scheduler.schedule(completed, mapReduce, filename, split, address);
 
                         } else {
                             shutdown();
@@ -138,7 +147,7 @@ public class Master {
 
                             in.close();
 
-                            scheduler.schedule(mapReduce, null);
+                            scheduler.map(mapReduce);
 
                         } else {
                             shutdown();

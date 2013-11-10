@@ -27,6 +27,7 @@ public class Client {
                 new WordCountMapTask(),
                 new WordCountReduceTask(),
                 files,
+                " ",
                 "wordCounts.txt"
         );
 

@@ -9,10 +9,8 @@ import java.io.*;
 import java.net.Inet4Address;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.net.UnknownHostException;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -30,6 +28,7 @@ public class Worker extends Thread {
     private final List<Future<?>> tasks;
 
     private static final int NUM_SELF_THREADS = 4;
+    private Map<Command, Map<MapReduce, Map<String, Map<Integer, Future<?>>>>> taskDistribution;
 
     public static void main(String[] args) {
 
@@ -49,6 +48,7 @@ public class Worker extends Thread {
         executor = Executors.newFixedThreadPool(Math.max(Config.getWorkerThreads(), NUM_SELF_THREADS));
         tasks = Collections.synchronizedList(new ArrayList<Future<?>>());
         WID = String.format("%s:%d", Inet4Address.getLocalHost().getHostAddress(), port);
+        taskDistribution = new HashMap<Command, Map<MapReduce, Map<String, Map<Integer, Future<?>>>>>();
     }
 
     @Override
@@ -58,6 +58,46 @@ public class Worker extends Thread {
         startMonitor();
         startHeartbeatListener();
         listen(port);
+    }
+
+    private void addTask(Command command, MapReduce mapReduce, String filename, int split, Future<?> task) {
+
+        Map<MapReduce, Map<String, Map<Integer, Future<?>>>> m1 = taskDistribution.get(command);
+        if (m1 == null) {
+            m1 = new HashMap<MapReduce, Map<String, Map<Integer, Future<?>>>>();
+            taskDistribution.put(command, m1);
+        }
+        Map<String, Map<Integer, Future<?>>> m2 = m1.get(mapReduce);
+        if (m2 == null) {
+            m2 = new HashMap<String, Map<Integer, Future<?>>>();
+            m1.put(mapReduce, m2);
+        }
+        Map<Integer, Future<?>> m3 = m2.get(filename);
+        if (m3 == null) {
+            m3 = new HashMap<Integer, Future<?>>();
+            m2.put(filename, m3);
+        }
+        m3.put(split, task);
+
+        try {
+            System.out.format("For task type %s with MapReduce %s, \n" +
+                    "\tsplit %d of file %s is being processed on worker at IP %s\n",
+                    command, mapReduce, split, filename, Inet4Address.getLocalHost().getHostAddress());
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void removeTask(Command command, MapReduce mapReduce, String filename, int split, Future<?> task) {
+        taskDistribution.get(command).get(mapReduce).get(filename).remove(split);
+
+        try {
+            System.out.format("For task type %s with MapReduce %s, \n" +
+                    "\tsplit %d of file %s has finished processed on worker at IP %s\n",
+                    command, mapReduce, split, filename, Inet4Address.getLocalHost().getHostAddress());
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
     }
 
     private void createWorkingDir() {
@@ -127,9 +167,60 @@ public class Worker extends Thread {
             public void run() {
                 while (true) {
 //                    synchronized (tasks) {
-                        for (Future<?> task : tasks) {
+                        /*for (Future<?> task : tasks) {
                             if (task.isDone()) {
                                 tasks.remove(task);
+                            }
+                        }*/
+                        for (Map.Entry<Command, Map<MapReduce, Map<String, Map<Integer, Future<?>>>>> m1
+                                : taskDistribution.entrySet()) {
+
+                            for (Map.Entry<MapReduce, Map<String, Map<Integer, Future<?>>>> m2
+                                    : taskDistribution.get(m1).entrySet()) {
+
+                                for (Map.Entry<String, Map<Integer, Future<?>>> m3
+                                        : taskDistribution.get(m1).get(m2).entrySet()) {
+
+                                    for (Map.Entry<Integer, Future<?>> m4
+                                            : taskDistribution.get(m1).get(m2).get(m3).entrySet()) {
+
+                                        if (m4.getValue().isDone()) {
+                                            try {
+                                                Socket master = new Socket(Config.getMasterIP(), Config.getMasterPort());
+
+                                                ObjectOutputStream out = new ObjectOutputStream(master.getOutputStream());
+
+                                                out.writeObject(m1.getKey());
+                                                out.writeObject(m2.getKey());
+                                                out.writeObject(m3.getKey());
+                                                out.writeObject(m4.getKey());
+
+                                                out.close();
+
+                                                taskDistribution
+                                                        .get(m1.getKey())
+                                                        .get(m2.getKey())
+                                                        .get(m3.getKey())
+                                                        .remove(m4.getKey());
+
+                                                System.out.format("Worker at IP %s completed the %s phase of the %s MapReduce task\n" +
+                                                        "for split %d of file %s!\n",
+                                                        Inet4Address.getLocalHost().getHostAddress(),
+                                                        m1.getKey(),
+                                                        m2.getKey(),
+                                                        m4.getKey(),
+                                                        m3.getKey());
+
+                                            } catch (UnknownHostException e) {
+                                                e.printStackTrace();
+                                            } catch (IOException e) {
+                                                e.printStackTrace();
+                                            }
+                                        }
+
+
+                                    }
+                                }
                             }
                         }
 
@@ -177,6 +268,9 @@ public class Worker extends Thread {
 
         try {
 
+            String filename = task.getArgs().get("file");
+            int split = Integer.parseInt(task.getArgs().get("split"));
+
             out.writeObject("got MAP task");
 
             MapReduce mapReduce = (MapReduce) in.readObject();
@@ -184,6 +278,8 @@ public class Worker extends Thread {
             System.out.format("Received map task from master:\n\t%s\n", mapReduce.toString());
 
             out.writeObject("Starting map task");
+
+            executor.submit(new ExecuteMap(this, mapReduce, filename, split));
 
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
@@ -232,5 +328,9 @@ public class Worker extends Thread {
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
+    }
+
+    File getWorkingDir() {
+        return workingDir;
     }
 }
