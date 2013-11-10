@@ -14,7 +14,7 @@ public class WordCountMapTask implements MapTask, Serializable {
         List<Pair<String, String>> mapped = new ArrayList<Pair<String, String>>();
         String[] items = k1.split(" ");
         for (String item : items) {
-            mapped.add(new Pair<String, String>(k1, Integer.toString(1)));
+            mapped.add(new Pair<String, String>(item.replaceAll("\\S", ""), Integer.toString(1)));
         }
         return mapped;
     }

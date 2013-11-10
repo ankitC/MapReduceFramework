@@ -52,6 +52,8 @@ public class ExecuteMap implements Runnable {
                 }
             }
 
+            bw.close();
+
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {

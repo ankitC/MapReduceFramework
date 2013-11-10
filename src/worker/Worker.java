@@ -279,7 +279,9 @@ public class Worker extends Thread {
 
             out.writeObject("Starting map task");
 
-            executor.submit(new ExecuteMap(this, mapReduce, filename, split));
+            Future<?> job  = executor.submit(new ExecuteMap(this, mapReduce, filename, split));
+
+            addTask(Command.MAP, mapReduce, filename, split, job);
 
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
