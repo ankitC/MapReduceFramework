@@ -70,7 +70,7 @@ public class Master {
 
                 ServerSocket serverSocket = null;
                 try {
-                    serverSocket = new ServerSocket(port + 1);
+                    serverSocket = new ServerSocket(port);
                 } catch (IOException e) {
                     e.printStackTrace();
                     shutdown();

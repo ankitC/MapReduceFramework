@@ -61,7 +61,11 @@ public class Scheduler {
                 IPAddress a = workerLoads.get(0).getY();
                 Socket s = master.getActiveWorkers().get(a);
 
+                System.out.println("Sending worker MAP command");
+
                 master.send(a, s, Command.MAP,  (Map<String, String>) null);
+
+                System.out.println("Sending the actual MapReduce object");
 
                 String response = master.send(a, s, mapReduce);
 
@@ -89,11 +93,21 @@ public class Scheduler {
         int load = 0;
 
         try {
+
+            System.out.format("Sending worker at IP %s a CURRENT_LOAD command\n",
+                                worker.getAddress());
+
             master.getActiveOutputStreams().get(worker).writeObject(
                     new TaskMessage(Command.CURRENT_LOAD, null)
             );
 
+            System.out.format("Getting current load of worker at IP %s\n", 
+                                worker.getAddress());
+            
+
             load = (Integer) master.getActiveInputStreams().get(worker).readObject();
+
+            System.out.println("\tResponded with " + load);
 
         } catch (IOException e) {
             e.printStackTrace();

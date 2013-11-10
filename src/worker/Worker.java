@@ -99,11 +99,13 @@ public class Worker extends Thread {
 
             while (true) {
                 try {
-                    System.out.println("Waiting for messages...");
+//                    System.out.println("Waiting for messages...");
 
                     TaskMessage task = (TaskMessage) in.readObject();
 
-                    System.out.format("Received %s task on port %d!\n", task.getCommand().toString(), port);
+                    if (!task.getCommand().equals(Command.HEARTBEAT)) {
+                        System.out.format("Received %s task on port %d!\n", task.getCommand().toString(), port);
+                    }
 
                     handleTask(task, in, out);
 
@@ -124,7 +126,7 @@ public class Worker extends Thread {
             @Override
             public void run() {
                 while (true) {
-                    synchronized (tasks) {
+//                    synchronized (tasks) {
                         for (Future<?> task : tasks) {
                             if (task.isDone()) {
                                 tasks.remove(task);
@@ -137,7 +139,7 @@ public class Worker extends Thread {
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
-                    }
+//                    }
                 }
             }
         });
