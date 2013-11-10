@@ -3,6 +3,7 @@ package worker;
 import config.Config;
 import io.Command;
 import io.TaskMessage;
+import mapreduce.MapReduce;
 
 import java.io.*;
 import java.net.Inet4Address;
@@ -148,6 +149,7 @@ public class Worker extends Thread {
 
         switch (command) {
             case MAP:
+                map(task, in, out);
                 break;
             case COMBINE:
                 break;
@@ -166,6 +168,25 @@ public class Worker extends Thread {
                 out.writeObject("Shutting down");
                 //@TODO cleanup
                 System.exit(0);
+        }
+    }
+
+    private void map(TaskMessage task, ObjectInputStream in, ObjectOutputStream out) {
+
+        try {
+
+            out.writeObject("got MAP task");
+
+            MapReduce mapReduce = (MapReduce) in.readObject();
+
+            System.out.format("Received map task from master:\n\t%s\n", mapReduce.toString());
+
+            out.writeObject("Starting map task");
+
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 

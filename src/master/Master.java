@@ -59,24 +59,45 @@ public class Master {
     }
 
     private void startListening() {
-        while (true) {
-            Socket socket = null;
-            try {
-                socket = new ServerSocket(port).accept();
-                System.out.format("Connected to socket for port %d!\n", port);
-                ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
 
-                MapReduce mapReduce = (MapReduce) in.readObject();
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
 
-                System.out.println("Received MapReduce task!");
-                System.out.println(mapReduce.toString());
+                ServerSocket serverSocket = null;
+                try {
+                    serverSocket = new ServerSocket(port + 1);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    shutdown();
+                }
 
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
+                while (true) {
+                    Socket socket = null;
+                    try {
+                        if (serverSocket != null) {
+                            socket = serverSocket.accept();
+                            System.out.format("Connected to socket for port %d!\n", port);
+                            ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+
+                            MapReduce mapReduce = (MapReduce) in.readObject();
+
+                            System.out.println("Received MapReduce task!");
+                            System.out.println(mapReduce.toString());
+
+                            in.close();
+                        } else {
+                            shutdown();
+                        }
+
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (ClassNotFoundException e) {
+                        e.printStackTrace();
+                    }
+                }
             }
-        }
+        });
     }
 
     private void startShell() {
@@ -182,7 +203,7 @@ public class Master {
                 addWorker(a, main, b, heartbeat);
 
                 //String response1 = send(a, main, Command.HEARTBEAT, null);
-                String response2 = send(b, heartbeat, Command.HEARTBEAT, null);
+                String response2 = send(b, heartbeat, Command.HEARTBEAT, (Map<String, String>) null);
 
                 //System.out.format("worker.Worker at IP %s on port %d responded with message %s\n", a.getAddress(), a.getPort(), response1);
                 System.out.format("\t\ton port %d responded with message %s\n", b.getPort(), response2);
@@ -210,7 +231,7 @@ public class Master {
                         Socket s = e.getValue();
 
                         try {
-                            send(b, s, Command.HEARTBEAT, null);
+                            send(b, s, Command.HEARTBEAT, (Map<String, String>) null);
                         } catch (Exception e1) {
                             System.out.format("Encountered exception while trying to communicate with worker at IP %s and port %d\n",
                                     b.getAddress(), b.getPort());
@@ -227,7 +248,7 @@ public class Master {
                             Socket main = new Socket(a.getAddress(), a.getPort());
                             Socket heartbeat = new Socket(b.getAddress(), b.getPort());
 
-                            send(b, heartbeat, Command.HEARTBEAT, null);
+                            send(b, heartbeat, Command.HEARTBEAT, (Map<String, String>) null);
 
                             addWorker(a, main, b, heartbeat);
 
@@ -264,7 +285,7 @@ public class Master {
         }
     }
 
-    private void shutdown() {
+    void shutdown() {
 
         System.out.println("System shutting down...");
 
@@ -278,7 +299,7 @@ public class Master {
             System.out.format("Attempting to shut down worker at IP %s on port %d...\n", a.getAddress(), a.getPort());
 
             try {
-                send(a, s, Command.SHUTDOWN, null);
+                send(a, s, Command.SHUTDOWN, (Map<String, String>) null);
                 System.out.println("worker shut down");
 
             } catch (Exception e1) {
@@ -301,7 +322,7 @@ public class Master {
         System.exit(0);
     }
 
-    private void addWorker(IPAddress a, Socket main, IPAddress b, Socket heartbeat) throws IOException {
+    void addWorker(IPAddress a, Socket main, IPAddress b, Socket heartbeat) throws IOException {
         activeWorkers.put(a, main);
         if (activeOutputStreams.get(a) == null) {
             activeOutputStreams.put(a, new ObjectOutputStream(main.getOutputStream()));
@@ -319,7 +340,7 @@ public class Master {
         disconnectedWorkers.remove(a);
     }
 
-    private void removeWorker(IPAddress a, IPAddress b) {
+    void removeWorker(IPAddress a, IPAddress b) {
         activeWorkers.remove(a);
         activeOutputStreams.remove(a);
         activeInputStreams.remove(a);
@@ -329,14 +350,14 @@ public class Master {
         disconnectedWorkers.add(a);
     }
 
-    private String send(IPAddress a, Socket s, Command c, Map<String, String> args)
+    String send(IPAddress a, Socket s, Command c, Map<String, String> args)
             throws IOException, ClassNotFoundException {
 
         return send(a, s, c, args, String.class);
     }
 
-    private <T> T send(IPAddress a, Socket s, Command c, Map<String, String> args,
-                       Class<T> type) throws IOException, ClassNotFoundException {
+    <T> T send(IPAddress a, Socket s, Command c, Map<String, String> args,
+               Class<T> type) throws IOException, ClassNotFoundException {
         s.setSoTimeout(10000);
 
         ObjectOutputStream out = activeOutputStreams.get(a);
@@ -348,6 +369,31 @@ public class Master {
         s.setSoTimeout(0);
 
         return response;
+    }
+
+    String send(IPAddress a, Socket s, Object o)
+            throws IOException, ClassNotFoundException {
+
+        return send(a, s, o, String.class);
+    }
+
+    <T> T send(IPAddress a, Socket s, Object o,
+               Class<T> type) throws IOException, ClassNotFoundException {
+        s.setSoTimeout(10000);
+
+        ObjectOutputStream out = activeOutputStreams.get(a);
+        out.writeObject(o);
+
+        ObjectInputStream in = activeInputStreams.get(a);
+        T response = type.cast(in.readObject());
+
+        s.setSoTimeout(0);
+
+        return response;
+    }
+
+    FileManager getFileManager() {
+        return fileManager;
     }
 
     Map<IPAddress, Socket> getActiveWorkers() {

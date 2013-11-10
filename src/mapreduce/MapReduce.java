@@ -5,10 +5,11 @@ import config.Config;
 import java.io.File;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.net.Socket;
 import java.util.List;
 
-public class MapReduce {
+public class MapReduce implements Serializable {
 
     private final String delim;
 
@@ -35,7 +36,7 @@ public class MapReduce {
     public void mapReduce() throws IOException {
 
         String address = Config.getMasterIP();
-        int port = Config.getMasterPort();
+        int port = Config.getMasterPort() + 1;
 
         Socket master = new Socket(address, port);
 
