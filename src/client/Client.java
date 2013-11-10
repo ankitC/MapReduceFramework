@@ -28,8 +28,8 @@ public class Client {
                 new WordCountReduceTask(),
                 files,
                 " ",
-                "wordCounts.txt"
-        );
+                "wordCounts.txt",
+                "WoRdCoUnTtAsK");
 
         mapReduce.mapReduce();
     }

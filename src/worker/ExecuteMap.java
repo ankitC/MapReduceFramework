@@ -1,13 +1,15 @@
 package worker;
 
 import common.Pair;
+import io.Command;
 import mapreduce.MapReduce;
 import mapreduce.MapTask;
 
 import java.io.*;
 import java.util.List;
+import java.util.concurrent.Callable;
 
-public class ExecuteMap implements Runnable {
+public class ExecuteMap implements Callable<String> {
 
     private Worker worker;
     private MapReduce mapReduce;
@@ -22,14 +24,13 @@ public class ExecuteMap implements Runnable {
     }
 
     @Override
-    public void run() {
+    public String call() {
 
         String delim = mapReduce.getDelim();
-
         File workingDir = worker.getWorkingDir();
 
-        File outputFile = new File(workingDir, String.format("%s_%s_%s.txt",
-                "map", filename, split));
+        File outputFile = new File(workingDir, String.format("%s_%s_%s_%s",
+                Command.MAP, mapReduce.getName(), filename, split));
 
         try {
             FileReader fr = new FileReader(new File(workingDir, filename + split));
@@ -59,5 +60,7 @@ public class ExecuteMap implements Runnable {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        return outputFile.getName();
     }
 }

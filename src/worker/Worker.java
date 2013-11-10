@@ -176,13 +176,13 @@ public class Worker extends Thread {
                                 : taskDistribution.entrySet()) {
 
                             for (Map.Entry<MapReduce, Map<String, Map<Integer, Future<?>>>> m2
-                                    : taskDistribution.get(m1).entrySet()) {
+                                    : taskDistribution.get(m1.getKey()).entrySet()) {
 
                                 for (Map.Entry<String, Map<Integer, Future<?>>> m3
-                                        : taskDistribution.get(m1).get(m2).entrySet()) {
+                                        : taskDistribution.get(m1.getKey()).get(m2.getKey()).entrySet()) {
 
                                     for (Map.Entry<Integer, Future<?>> m4
-                                            : taskDistribution.get(m1).get(m2).get(m3).entrySet()) {
+                                            : taskDistribution.get(m1.getKey()).get(m2.getKey()).get(m3.getKey()).entrySet()) {
 
                                         if (m4.getValue().isDone()) {
                                             try {
@@ -245,6 +245,7 @@ public class Worker extends Thread {
                 map(task, in, out);
                 break;
             case COMBINE:
+                combine(task, in, out);
                 break;
             case REDUCE:
                 break;
@@ -262,6 +263,189 @@ public class Worker extends Thread {
                 //@TODO cleanup
                 System.exit(0);
         }
+    }
+
+    private void combine(TaskMessage task, ObjectInputStream in, ObjectOutputStream out) {
+        try {
+
+            out.writeObject("Got COMBINE task");
+
+            final MapReduce mapReduce = (MapReduce) in.readObject();
+
+            System.out.format("Received map task from master:\n\t%s\n", mapReduce.toString());
+
+            out.writeObject("Starting combine task");
+
+            List<File> filesForMergeSort = new ArrayList<File>();
+
+            File[] files = workingDir.listFiles();
+            String taskName = mapReduce.getName();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.getName().contains(taskName)) {
+                        filesForMergeSort.add(file);
+                    }
+                }
+            }
+
+            System.out.println("Performing mergesort");
+
+            final File mergesorted = mergeSort(filesForMergeSort, 0, taskName);
+
+            System.out.println("Finished the mergesort, proceeding with COMBINE");
+
+            final Map<String, File> partitionedKeys = partitionKeys(mergesorted, taskName);
+
+            Future<?> job = executor.submit(new ExecuteReduce(
+                    Worker.this,
+                    mapReduce,
+                    new TreeMap<String, File>(partitionedKeys),
+                    Command.COMBINE
+            ));
+
+            addTask(Command.COMBINE, mapReduce, "", -1, job);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private Map<String, File> partitionKeys(File mergesorted, String taskName) throws IOException {
+        Map<String, File> partitioned = new HashMap<String, File>();
+        Map<String, BufferedWriter> streams = new HashMap<String, BufferedWriter>();
+
+        FileReader fr = new FileReader(mergesorted);
+        BufferedReader br = new BufferedReader(fr);
+
+        String line;
+        int keyNum = 0;
+
+        while ((line = br.readLine()) != null) {
+            String key = line.split(" ")[0];
+            String val = line.split(" ")[1];
+
+            File fileForKey = partitioned.get(key);
+
+            if (fileForKey == null) {
+                String fileName = String.format("%s_%s_%s", "partition", taskName, key);
+                fileForKey = new File(workingDir, fileName);
+                partitioned.put(key, fileForKey);
+
+                FileWriter frFK = new FileWriter(fileName);
+                BufferedWriter brFK = new BufferedWriter(frFK);
+                streams.put(key, brFK);
+            }
+
+            BufferedWriter brFK = streams.get(key);
+            brFK.write(line);
+            brFK.newLine();
+        }
+
+        for (BufferedWriter brFK : streams.values()) {
+            brFK.close();
+        }
+
+        return partitioned;
+    }
+
+    private File mergeSort(List<File> filesForMergeSort, int i, String taskName) throws IOException {
+
+        if (filesForMergeSort.size() == 1) return filesForMergeSort.get(0);
+
+        List<File> newlySorted = new ArrayList<File>();
+
+
+        Iterator<File> files = filesForMergeSort.iterator();
+
+        while (files.hasNext()) {
+            File f1 = files.next();
+            File f2 = null;
+
+            if (files.hasNext()) {
+                f2 = files.next();
+            }
+
+            if (f2 == null) {
+                File s1 = sort(f1, i, taskName);
+                newlySorted.add(s1);
+            } else {
+                File s1 = sort(f1, i, taskName);
+                File s2 = sort(f2, i, taskName);
+                File m = merge(s1, s2, i, taskName);
+                newlySorted.add(m);
+            }
+        }
+
+        return mergeSort(newlySorted, ++i, taskName);
+    }
+
+    private File merge(File s1, File s2, int i, String taskName) throws IOException {
+
+        FileReader fr1 = new FileReader(s1);
+        BufferedReader br1 = new BufferedReader(fr1);
+        FileReader fr2 = new FileReader(s2);
+        BufferedReader br2 = new BufferedReader(fr2);
+
+        String outName = String.format("%s_%s_%s.txt", "merge", taskName, i);
+
+        File output = new File(workingDir, outName);
+
+        FileWriter fw = new FileWriter(output);
+        BufferedWriter bw = new BufferedWriter(fw);
+
+        String line1;
+        String line2;
+
+        while ((line1 = br1.readLine()) != null) {
+            while ((line2 = br2.readLine()) != null) {
+                if (line1 != null && line1.compareTo(line2) < 0) {
+                    bw.write(line1);
+                    bw.newLine();
+                    line1 = br1.readLine();
+                } else {
+                    bw.write(line2);
+                    bw.newLine();
+                }
+            }
+        }
+
+        bw.close();
+
+        return output;
+    }
+
+    private File sort(File file, int i, String taskName) throws IOException {
+        FileReader fr = new FileReader(file);
+        BufferedReader br = new BufferedReader(fr);
+
+        List<String> mapped = new ArrayList<String>();
+
+        String outName = String.format("%s_%s_%s.txt", "sort", taskName, i);
+
+        File output = new File(workingDir, outName);
+
+        FileWriter fw = new FileWriter(output);
+        BufferedWriter bw = new BufferedWriter(fw);
+
+        String line;
+
+        while ((line = br.readLine()) != null) {
+            mapped.add(line);
+        }
+
+        Collections.sort(mapped);
+
+        for (String item : mapped) {
+            System.out.println(item);
+            bw.write(item);
+            bw.newLine();
+        }
+
+        bw.close();
+
+        return output;
     }
 
     private void map(TaskMessage task, ObjectInputStream in, ObjectOutputStream out) {

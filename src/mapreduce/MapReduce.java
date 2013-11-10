@@ -19,18 +19,20 @@ public class MapReduce implements Serializable {
     private final List<File> files;
 
     private final String resultName;
+    private String name;
 
-    public MapReduce(MapTask map, ReduceTask reduce, List<File> files, String resultName) {
-        this(map, reduce, files, "", resultName);
+    public MapReduce(MapTask map, ReduceTask reduce, List<File> files, String resultName, String name) {
+        this(map, reduce, files, "", resultName, name);
     }
 
-    public MapReduce(MapTask map, ReduceTask reduce, List<File> files, String delim, String resultName) {
+    public MapReduce(MapTask map, ReduceTask reduce, List<File> files, String delim, String resultName, String name) {
 
         this.map = map;
         this.reduce = reduce;
         this.files = files;
         this.delim = delim;
         this.resultName = resultName;
+        this.name = name;
     }
 
     public void mapReduce() throws IOException {
@@ -75,5 +77,9 @@ public class MapReduce implements Serializable {
                 ", files=" + files +
                 ", resultName='" + resultName + '\'' +
                 '}';
+    }
+
+    public String getName() {
+        return name;
     }
 }
