@@ -8,7 +8,7 @@ import mapreduce.ReduceTask;
 import java.io.*;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Scanner;
+import java.util.NoSuchElementException;
 import java.util.concurrent.Callable;
 
 public class ExecuteReduce implements Callable<String> {
@@ -34,32 +34,47 @@ public class ExecuteReduce implements Callable<String> {
         File outputFile = new File(workingDir, String.format("%s_%s",
                 command, mapReduce.getName()));
 
+        System.out.println("here1");
+
         try {
             FileWriter fw = new FileWriter(outputFile);
 
             BufferedWriter bw = new BufferedWriter(fw);
 
+            System.out.println("here2");
+
             for (Map.Entry<String, File> e : keyVals.entrySet()) {
+
+                System.out.println("here3");
 
                 String key = e.getKey();
                 File file = e.getValue();
 
-                Scanner scanner = new Scanner(file);
-
+                System.out.println("here4");
 
                 ReduceTask reduce = mapReduce.getReduce();
 
-                ReduceIterator iterator = new ReduceIterator(scanner);
+                ReduceIterator iterator = new ReduceIterator(file);
+
+                System.out.println("here5");
 
                 Pair<String, String> result = reduce.reduce(key, iterator);
+
+                System.out.println("here6");
 
                 String resultString = String.format("%s %s%n", result.getX(), result.getY());
                 System.out.println(resultString);
                 bw.write(resultString);
                 bw.newLine();
 
-                bw.close();
+                System.out.println("here7");
+
             }
+
+            System.out.println("here8");
+
+            bw.close();
+
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -71,25 +86,38 @@ public class ExecuteReduce implements Callable<String> {
 
     private class ReduceIterator implements Iterator<String> {
 
-        private Iterator<String> iterator;
+        private BufferedReader reader;
+        private String line;
 
-        private ReduceIterator(Iterator<String> iterator) {
-            this.iterator = iterator;
+        private ReduceIterator(File file) throws IOException {
+            this.reader = new BufferedReader(new FileReader(file));
+            line = reader.readLine();
         }
 
         @Override
         public boolean hasNext() {
-            return iterator.hasNext();
+            return line != null;
         }
 
         @Override
-        public String next() {
-            return iterator.next().split(" ")[0];
+        public String next() throws NoSuchElementException {
+            if (line == null) throw new NoSuchElementException();
+            String next = line;
+            try {
+                line = reader.readLine();
+                if (line == null) {
+                    reader.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return next.split(" ")[1];
         }
 
         @Override
         public void remove() {
-            iterator.remove();
+            throw new UnsupportedOperationException( "Cannot remove" );
         }
     }
 }
+

@@ -359,7 +359,7 @@ public class Worker extends Thread {
                 fileForKey = new File(workingDir, fileName);
                 partitioned.put(key, fileForKey);
 
-                FileWriter frFK = new FileWriter(fileName);
+                FileWriter frFK = new FileWriter(fileForKey);
                 BufferedWriter brFK = new BufferedWriter(frFK);
                 streams.put(key, brFK);
             }

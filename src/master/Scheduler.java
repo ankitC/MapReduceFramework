@@ -21,7 +21,7 @@ public class Scheduler {
     private List<MapReduce> combineTasks;
     private List<MapReduce> reduceTasks;
 
-    private Map<IPAddress, Map<Command, Map<MapReduce, Map<String, List<Integer>>>>> taskDistribution;
+    private Map<String, Map<Command, Map<String, Map<String, List<Integer>>>>> taskDistribution;
 
     Scheduler(Master master) {
         this.master = master;
@@ -39,14 +39,14 @@ public class Scheduler {
             case MAP:
                 System.out.format("Now that worker at IP %s has finished phase %s of task %s, " +
                         "processing split %d of file %s, we now send it a %s task\n",
-                        address.getAddress(), completed, mapReduce.getName(), split, filename, Command.COMBINE);
+                        address, completed, mapReduce.getName(), split, filename, Command.COMBINE);
 
-                removeTask(address, completed, mapReduce, filename, split);
+                removeTask(address.getAddress(), completed, mapReduce, filename, split);
 
                 int numMapsLeft = 0;
 
-                for (String file : getFiles(address, completed, mapReduce)) {
-                    List<Integer> tasks = getTasks(address, completed, mapReduce, file);
+                for (String file : getFiles(address.getAddress(), completed, mapReduce)) {
+                    List<Integer> tasks = getTasks(address.getAddress(), completed, mapReduce, file);
                     if (tasks != null) {
                         numMapsLeft += tasks.size();
                     }
@@ -61,9 +61,9 @@ public class Scheduler {
             case COMBINE:
                 System.out.format("Now that worker at IP %s has finished phase %s of task %s, " +
                         "processing split %d of file %s, we now do a global %s task\n",
-                        address.getAddress(), completed, mapReduce.getName(), split, filename, Command.REDUCE);
+                        address, completed, mapReduce.getName(), split, filename, Command.REDUCE);
 
-                removeTask(address, completed, mapReduce, filename, split);
+                removeTask(address.getAddress(), completed, mapReduce, filename, split);
 
                 break;
             case REDUCE:
@@ -74,25 +74,25 @@ public class Scheduler {
     }
 
     private void initTaskDistribution() {
-        taskDistribution = new HashMap<IPAddress, Map<Command, Map<MapReduce, Map<String, List<Integer>>>>>();
+        taskDistribution = new HashMap<String, Map<Command, Map<String, Map<String, List<Integer>>>>>();
     }
 
-    private void addTask(IPAddress address, Command command, MapReduce mapReduce, String filename, int split) {
+    private void addTask(String address, Command command, MapReduce mapReduce, String filename, int split) {
 
-        Map<Command, Map<MapReduce, Map<String, List<Integer>>>> m1 = taskDistribution.get(address);
+        Map<Command, Map<String, Map<String, List<Integer>>>> m1 = taskDistribution.get(address);
         if (m1 == null) {
-            m1 = new HashMap<Command, Map<MapReduce, Map<String, List<Integer>>>>();
+            m1 = new HashMap<Command, Map<String, Map<String, List<Integer>>>>();
             taskDistribution.put(address, m1);
         }
-        Map<MapReduce, Map<String, List<Integer>>> m2 = m1.get(command);
+        Map<String, Map<String, List<Integer>>> m2 = m1.get(command);
         if (m2 == null) {
-            m2 = new HashMap<MapReduce, Map<String, List<Integer>>>();
+            m2 = new HashMap<String, Map<String, List<Integer>>>();
             m1.put(command, m2);
         }
-        Map<String, List<Integer>> m3 = m2.get(mapReduce);
+        Map<String, List<Integer>> m3 = m2.get(mapReduce.getName());
         if (m3 == null) {
             m3 = new HashMap<String, List<Integer>>();
-            m2.put(mapReduce, m3);
+            m2.put(mapReduce.getName(), m3);
         }
         List<Integer> m4 = m3.get(filename);
         if (m4 == null) {
@@ -103,27 +103,45 @@ public class Scheduler {
 
         System.out.format("For task type %s with MapReduce %s, \n" +
                 "\tsplit %d of file %s is being processed on worker at IP %s\n",
-                command, mapReduce.getName(), split, filename, address.getAddress());
+                command, mapReduce.getName(), split, filename, address);
+
+        System.out.format("Verifying that we correctly added a task:\n" +
+                "%s\n%s\n%s\n%s\n%d\n",
+                address, command, mapReduce.getName(), filename, split);
+
+        List<Integer> list = taskDistribution.get(address).get(command).get(mapReduce.getName()).get(filename);
+
+        System.out.println((list == null) ? "NOPE IT WASN'T ADDED" : "Yep we're good here");
     }
 
-    private void removeTask(IPAddress address, Command command,
+    private void removeTask(String address, Command command,
                             MapReduce mapReduce, String filename, int split) {
 
-        List<Integer> integers = taskDistribution.get(address).get(command).get(mapReduce).get(filename);
+        System.out.format("Request to remove task:\n" +
+                "%s\n%s\n%s" +
+                "\n%s\n%d\n",
+                address, command, mapReduce.getName(), filename, split);
+
+        Map<Command, Map<String, Map<String, List<Integer>>>> commandMapMap = taskDistribution.get(address);
+        Map<String, Map<String, List<Integer>>> mapReduceMapMap = commandMapMap.get(command);
+        Map<String, List<Integer>> stringListMap = mapReduceMapMap.get(mapReduce.getName());
+        List<Integer> integers1 = stringListMap.get(filename);
+
+        List<Integer> integers = taskDistribution.get(address).get(command).get(mapReduce.getName()).get(filename);
         if (integers != null) {
-            integers.remove(split);
+            integers.remove((Integer) split);
         }
     }
 
-    private List<String> getFiles(IPAddress address, Command command,
+    private List<String> getFiles(String address, Command command,
                                   MapReduce mapReduce) {
 
-        return new ArrayList<String>(taskDistribution.get(address).get(command).get(mapReduce).keySet());
+        return new ArrayList<String>(taskDistribution.get(address).get(command).get(mapReduce.getName()).keySet());
     }
 
-    private List<Integer> getTasks(IPAddress address, Command command,
+    private List<Integer> getTasks(String address, Command command,
                              MapReduce mapReduce, String filename) {
-        return taskDistribution.get(address).get(command).get(mapReduce).get(filename);
+        return taskDistribution.get(address).get(command).get(mapReduce.getName()).get(filename);
     }
 
     void map(MapReduce mapReduce) throws IOException, ClassNotFoundException {
@@ -132,12 +150,16 @@ public class Scheduler {
                 List<Pair<Integer, IPAddress>> workerLoads = new ArrayList<Pair<Integer, IPAddress>>();
 
                 for (IPAddress worker : fileManager.getFileDistribution().get(file.getName()).get(split)) {
-                    workerLoads.add(new Pair<Integer, IPAddress>(getWorkerLoad(worker), worker));
+                    int workerLoad = getWorkerLoad(worker);
+                    workerLoads.add(new Pair<Integer, IPAddress>(workerLoad, worker));
+                    System.out.format("Adding worker %s:%d with workload %d\n",
+                            worker.getAddress(), worker.getPort(), workerLoad);
                 }
 
                 Collections.sort(workerLoads);
 
                 IPAddress a = workerLoads.get(0).getY();
+                System.out.format("Looking for worker %s:%d\n", a.getAddress(), a.getPort());
                 Socket s = master.getActiveWorkers().get(a);
 
                 System.out.println("Sending worker MAP command");
@@ -152,7 +174,7 @@ public class Scheduler {
 
                 String response = master.send(a, s, mapReduce);
 
-                addTask(a, Command.MAP, mapReduce, file.getName(), split);
+                addTask(a.getAddress(), Command.MAP, mapReduce, file.getName(), split);
 
                 System.out.format("Worker at IP %s responded with: %s\n", a.getAddress(), response);
             }
@@ -160,6 +182,7 @@ public class Scheduler {
     }
 
     private void combine(MapReduce mapReduce, IPAddress address) throws IOException, ClassNotFoundException {
+        System.out.format("getting worker %s:%d\n", address.getAddress(), address.getPort());
         Socket s = master.getActiveWorkers().get(address);
 
         System.out.println("Sending worker COMBINE command");
@@ -170,9 +193,9 @@ public class Scheduler {
 
         String response = master.send(address, s, mapReduce);
 
-        addTask(address, Command.COMBINE, mapReduce, "", -1);
+        addTask(address.getAddress(), Command.COMBINE, mapReduce, "", -1);
 
-        System.out.format("Worker at IP %s responded with: %s\n", address.getAddress(), response);
+        System.out.format("Worker at IP %s responded with: %s\n", address, response);
     }
 
     public List<MapReduce> getMapTasks() {
@@ -216,3 +239,4 @@ public class Scheduler {
         return load;
     }
 }
+

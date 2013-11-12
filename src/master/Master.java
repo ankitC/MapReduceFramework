@@ -10,6 +10,7 @@ import mapreduce.MapReduce;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,6 +30,7 @@ public class Master {
     private ConcurrentHashMap<IPAddress, ObjectOutputStream> activeOutputStreams;
     private ConcurrentHashMap<IPAddress, ObjectInputStream> activeInputStreams;
 
+    private Map<String, Integer> baseWorkerPortMap;
 
     private Set<IPAddress> disconnectedWorkers;
 
@@ -43,6 +45,7 @@ public class Master {
         activeInputStreams = new ConcurrentHashMap<IPAddress, ObjectInputStream>();
         disconnectedWorkers = new ConcurrentSkipListSet<IPAddress>();
         executor = Executors.newCachedThreadPool();
+        baseWorkerPortMap = new HashMap<String, Integer>();
     }
 
     public static void main(String[] args) {
@@ -89,14 +92,15 @@ public class Master {
                             String filename = (String) in.readObject();
                             Integer split = (Integer) in.readObject();
 
+                            String hostAddress = socket.getInetAddress().getHostAddress();
                             IPAddress address = new IPAddress(
-                                    socket.getInetAddress().getHostAddress(),
-                                    socket.getPort()
+                                    hostAddress,
+                                    baseWorkerPortMap.get(hostAddress)
                             );
 
                             System.out.format("Worker at IP %s completed the %s phase of the %s MapReduce task\n" +
                                     "for split %d of file %s!\n",
-                                    socket.getInetAddress().getHostAddress(), completed, mapReduce.toString(),
+                                    hostAddress, completed, mapReduce.toString(),
                                     split, filename);
                             System.out.println(mapReduce.toString());
 
@@ -257,6 +261,8 @@ public class Master {
             Socket main;
             Socket heartbeat;
 
+            baseWorkerPortMap.put(a.getAddress(), a.getPort());
+
             IPAddress b = new IPAddress(a.getAddress(), a.getPort() + 1);
 
             try {
@@ -268,7 +274,7 @@ public class Master {
                 //String response1 = send(a, main, Command.HEARTBEAT, null);
                 String response2 = send(b, heartbeat, Command.HEARTBEAT, (Map<String, String>) null);
 
-                //System.out.format("worker.Worker at IP %s on port %d responded with message %s\n", a.getAddress(), a.getPort(), response1);
+                System.out.format("worker.Worker at IP %s\n", a.getAddress());
                 System.out.format("\t\ton port %d responded with message %s\n", b.getPort(), response2);
 
 
@@ -474,4 +480,15 @@ public class Master {
     ConcurrentHashMap<IPAddress, ObjectInputStream> getActiveInputStreams() {
         return activeInputStreams;
     }
+
+    public String send(String a, Socket s, Command command, Map<String, String> args) throws IOException, ClassNotFoundException {
+        IPAddress address = new IPAddress(a, baseWorkerPortMap.get(a));
+        return send(address, s, command, args);
+    }
+
+    public String send(String address, Socket s, MapReduce mapReduce) throws IOException, ClassNotFoundException {
+        IPAddress a = new IPAddress(address, baseWorkerPortMap.get(address));
+        return send(a, s, mapReduce);
+    }
 }
+
