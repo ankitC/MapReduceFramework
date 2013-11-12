@@ -1,5 +1,7 @@
 #!/bin/bash
 
+NAME=$(bash scripts/get-project-name.sh)
+
 if [ ! -z $1 ]
 then
 	DIFF=$(bash scripts/check-make.sh)
@@ -13,7 +15,7 @@ then
 	fi
 
 	MAIN=$(find src -name $1".java" | sed {s/src\\///g} | sed {s/\.java//g})
-	java -cp MapReduceFramework.jar $MAIN "${*:2}"
+	java -cp $NAME.jar $MAIN "${*:2}"
 else
 	echo "Sorry, must enter a valid program! (ex: Client, Registry, CapitalsServer)"
 fi

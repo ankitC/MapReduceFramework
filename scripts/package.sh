@@ -1,3 +1,4 @@
+NAME=$(bash scripts/get-project-name.sh)
 DIFF=$(bash scripts/check-make.sh)
 if [ ! -n "$DIFF" ]; then
         echo "Makefile up-to-date"
@@ -8,9 +9,9 @@ else
 fi
 
 
-rm MapReduceFramework.jar
+rm $NAME.jar
 cd src/
 make
-jar cf MapReduceFramework.jar *
-mv MapReduceFramework.jar ../MapReduceFramework.jar
+jar cf $NAME.jar *
+mv $NAME.jar ../$NAME.jar
 cd ../
