@@ -6,6 +6,7 @@ import mapreduce.ReduceTask;
 import java.io.Serializable;
 import java.util.Iterator;
 
+/* The Reducer for doing word count */
 public class WordCountReduceTask implements ReduceTask, Serializable {
 
     @Override

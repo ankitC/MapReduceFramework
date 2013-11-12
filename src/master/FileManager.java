@@ -10,6 +10,12 @@ import java.net.Socket;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+/* The file manager which works for the filesystem.
+	This method creates the splits of the data and 
+	distributes them amongst the nodes for the 
+	distributed file system.
+*/
+
 public class FileManager {
 
     private ConcurrentHashMap<String, Map<Integer, List<IPAddress>>> fileDistribution;
@@ -23,6 +29,8 @@ public class FileManager {
     ConcurrentHashMap<String, Map<Integer, List<IPAddress>>> getFileDistribution() {
         return fileDistribution;
     }
+
+    /* Initial bootstrap to distribute the data amongst workers */
 
     boolean bootstrap() {
 
@@ -53,7 +61,7 @@ public class FileManager {
                         fileDistribution.put(file.getName(), new HashMap<Integer, List<IPAddress>>());
                     }
 
-
+                    /* Checking for the file */
                     BufferedReader r;
 
                     try {
@@ -63,6 +71,7 @@ public class FileManager {
                         return false;
                     }
 
+                    /* Calculating Splits */
                     int bytesPerSplit = (int) Math.ceil((double) file.length() / (double) Config.getNumSplits());
                     long bytesLeft = file.length();
 
@@ -80,6 +89,7 @@ public class FileManager {
                         int splitNumBytes = 0;
                         int splitNumLines = 0;
 
+                        /* Replicating and Adding data to storage nodes one replica at a time */
                         while (numAssigned < Config.getReplicationFactor()) {
                             while (workers.hasNext()) {
 

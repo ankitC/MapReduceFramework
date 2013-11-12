@@ -9,6 +9,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
+/* Configuration class and parameter initilization for the worker nodes */
 public class WorkerConfig {
 
     public static List<IPAddress> workers = new ArrayList<IPAddress>();

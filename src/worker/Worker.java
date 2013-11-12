@@ -16,6 +16,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+/* The worker class which does the processing as orchestered by the Master */
 public class Worker extends Thread {
 
     private final int MONITOR_INTERVAL = 2000;
@@ -61,6 +62,7 @@ public class Worker extends Thread {
         listen(port);
     }
 
+    /* Adds a task to its own list.*/
     private void addTask(Command command, MapReduce mapReduce, String filename, int split, Future<?> task) {
 
         Map<MapReduce, Map<String, Map<Integer, Future<?>>>> m1 = taskDistribution.get(command);
@@ -89,6 +91,7 @@ public class Worker extends Thread {
         }
     }
 
+    /* Removes task from its list once finished */
     private void removeTask(Command command, MapReduce mapReduce, String filename, int split, Future<?> task) {
         taskDistribution.get(command).get(mapReduce).get(filename).remove(split);
 
@@ -101,6 +104,7 @@ public class Worker extends Thread {
         }
     }
 
+    /* Create a directory for the DFS which holds the data to be worked upon */
     private void createWorkingDir() {
         workingDir = new File("worker" + WID);
 
@@ -121,6 +125,7 @@ public class Worker extends Thread {
         }
     }
 
+    /* Starts the heartbeat to let the master know that 'I'm alive!!' */
     private void startHeartbeatListener() {
         executor.execute(new Runnable() {
             @Override
@@ -130,6 +135,7 @@ public class Worker extends Thread {
         });
     }
 
+    /* Listen for incoming messages from the master and execute accordingly */
     private void listen(int port) {
         Socket socket = null;
         try {
@@ -162,6 +168,7 @@ public class Worker extends Thread {
         }
     }
 
+    /* Monitors each task that is being executed on the worker in a monitor thread */
     private void startMonitor() {
         executor.execute(new Runnable() {
             @Override
@@ -237,6 +244,7 @@ public class Worker extends Thread {
         });
     }
 
+    /* Handle the incoming message and do the work according to the command in the message */
     private void handleTask(TaskMessage task, ObjectInputStream in, ObjectOutputStream out) throws IOException {
 
         Command command = task.getCommand();
@@ -266,6 +274,7 @@ public class Worker extends Thread {
         }
     }
 
+    /* Get the current number of tasks being run on the worker */
     private int getNumTasks() {
 
         int numTasks = 0;
@@ -291,6 +300,7 @@ public class Worker extends Thread {
         return numTasks;
     }
 
+    /* To combine the results of the Map and organize them to be fed to the reduces */
     private void combine(TaskMessage task, ObjectInputStream in, ObjectOutputStream out) {
         try {
 
@@ -338,6 +348,7 @@ public class Worker extends Thread {
         }
     }
 
+    /* Partition the keys to be used further in the processing */
     private Map<String, File> partitionKeys(File mergesorted, String taskName) throws IOException {
         Map<String, File> partitioned = new HashMap<String, File>();
         Map<String, BufferedWriter> streams = new HashMap<String, BufferedWriter>();
@@ -376,6 +387,7 @@ public class Worker extends Thread {
         return partitioned;
     }
 
+    /* Our very own beloved merge-sort */
     private File mergeSort(List<File> filesForMergeSort, int i, String taskName) throws IOException {
 
         if (filesForMergeSort.size() == 1) return filesForMergeSort.get(0);
@@ -407,6 +419,7 @@ public class Worker extends Thread {
         return mergeSort(newlySorted, ++i, taskName);
     }
 
+    /* Merge the two files and write them out */
     private File merge(File s1, File s2, int i, String taskName) throws IOException {
 
         FileReader fr1 = new FileReader(s1);
@@ -442,6 +455,7 @@ public class Worker extends Thread {
         return output;
     }
 
+    /* Sorts the items from the input file and writes them out */
     private File sort(File file, int i, String taskName) throws IOException {
         FileReader fr = new FileReader(file);
         BufferedReader br = new BufferedReader(fr);
@@ -474,6 +488,7 @@ public class Worker extends Thread {
         return output;
     }
 
+    /* Executes the Map as defined and add that task to our list of running tasks */
     private void map(TaskMessage task, ObjectInputStream in, ObjectOutputStream out) {
 
         try {
@@ -500,6 +515,7 @@ public class Worker extends Thread {
         }
     }
 
+    /* Download the file and place it in out DFS directory */
     private void download(TaskMessage task, ObjectInputStream in, ObjectOutputStream out) {
 
         try {

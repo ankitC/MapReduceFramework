@@ -65,6 +65,7 @@ public class Master {
         master.startShell();
     }
 
+    /* Listens to the messages from the workers and distributes tasks */
     private void startWorkerTaskListener() {
 
         executor.execute(new Runnable() {
@@ -122,6 +123,7 @@ public class Master {
         });
     }
 
+    /* Listens for incoming MapReduce jobs from any client and initilizes the job */
     private void startClientListener() {
 
         executor.execute(new Runnable() {
@@ -167,6 +169,7 @@ public class Master {
         });
     }
 
+    /* Interactive shell so we know "what's going on!!" */
     private void startShell() {
 
         BufferedReader br =
@@ -235,6 +238,7 @@ public class Master {
         }
     }
 
+    /* helper method to find the file */
     private void findFile(String token) {
         Map<Integer,List<IPAddress>> locations =
                 fileManager.getFileDistribution().get(token);
@@ -256,6 +260,7 @@ public class Master {
         }
     }
 
+    /* Helper method to find the workers */
     private void findWorkers() {
         for (IPAddress a : WorkerConfig.workers) {
             Socket main;
@@ -285,6 +290,7 @@ public class Master {
         }
     }
 
+    /* Start heartbeats to know who is alive and who's a deadman!!*/
     private void startHeartbeat() {
         executor.execute(new Runnable() {
             @Override
@@ -343,6 +349,7 @@ public class Master {
         });
     }
 
+    /* Starts the file manager and bootstraps the file system */
     private void startFileManager() {
         fileManager = new FileManager(this);
 
@@ -354,10 +361,12 @@ public class Master {
         }
     }
 
+    /* Start the scheduler!, the the fun begin!! */
     private void startScheduler() {
         scheduler = new Scheduler(this);
     }
 
+    /* Get the whole system to shut down gracefully, rather, send a "HEART ATTACK!!" *evil laugh* */
     void shutdown() {
 
         System.out.println("System shutting down...");
@@ -395,6 +404,7 @@ public class Master {
         System.exit(0);
     }
 
+    /* Add the worker to the books so that we can assign some work to it later */
     void addWorker(IPAddress a, Socket main, IPAddress b, Socket heartbeat) throws IOException {
         activeWorkers.put(a, main);
         if (activeOutputStreams.get(a) == null) {
@@ -413,6 +423,7 @@ public class Master {
         disconnectedWorkers.remove(a);
     }
 
+    /* Remove the worker if it is dead and let's not give it work for the time being */
     void removeWorker(IPAddress a, IPAddress b) {
         activeWorkers.remove(a);
         activeOutputStreams.remove(a);
@@ -423,6 +434,7 @@ public class Master {
         disconnectedWorkers.add(a);
     }
 
+    /* Methods to exchange messages */
     String send(IPAddress a, Socket s, Command c, Map<String, String> args)
             throws IOException, ClassNotFoundException {
 

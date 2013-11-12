@@ -5,6 +5,8 @@ import common.Pair;
 import java.net.Inet4Address;
 import java.net.UnknownHostException;
 
+
+/* Helper class for addressing the hosts */
 public class IPAddress implements Comparable<IPAddress> {
 
     private Pair<String, Integer> ipAddress;

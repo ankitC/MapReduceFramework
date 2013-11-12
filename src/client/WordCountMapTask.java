@@ -7,6 +7,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+/* The Map task for doing word count */
 public class WordCountMapTask implements MapTask, Serializable {
 
     @Override

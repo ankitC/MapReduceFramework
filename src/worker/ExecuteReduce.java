@@ -11,6 +11,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.Callable;
 
+
+/* Executes the reduce and stores the results to the DFS?? */
 public class ExecuteReduce implements Callable<String> {
 
     private Worker worker;

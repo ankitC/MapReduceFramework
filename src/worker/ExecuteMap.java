@@ -9,6 +9,8 @@ import java.io.*;
 import java.util.List;
 import java.util.concurrent.Callable;
 
+
+/* Executes the maps and stores the results on the local disk to be fed to the reducer */
 public class ExecuteMap implements Callable<String> {
 
     private Worker worker;

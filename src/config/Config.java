@@ -31,6 +31,7 @@ public class Config {
 
     private static Map<String, String> properties;
 
+	/* Initializing from the properties file and setting up the enviornment */ 
     static {
         properties = new HashMap<String, String>();
 
@@ -86,6 +87,7 @@ public class Config {
         System.out.println(stringify());
     }
 
+    /* Static setters and getters */
     private static String getProperty(String property) {
         if (property == null) return null;
         return properties.get(property.toLowerCase());
