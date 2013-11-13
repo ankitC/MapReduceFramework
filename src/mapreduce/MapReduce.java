@@ -25,6 +25,7 @@ public class MapReduce implements Serializable {
         this(map, reduce, files, "", resultName, name);
     }
 
+    //TODO:Replace Name with a system generated jobID
     public MapReduce(MapTask map, ReduceTask reduce, List<File> files, String delim, String resultName, String name) {
 
         this.map = map;

@@ -521,13 +521,14 @@ public class Worker extends Thread {
         try {
             Map<String, String> args = task.getArgs();
 
-            //@TODO put arg names in a static class
+            //@TODO put arg names in a static class,
             String fileBaseName = args.get("filename");
             int filePartitionNum = Integer.parseInt(args.get("split"));
             long fileNumBytes = Long.parseLong(args.get("numBytes"));
 
             //FileOutputStream fos = new FileOutputStream(workingDir + File.separator + fileBaseName + filePartitionNum);
             //BufferedOutputStream bout = new BufferedOutputStream(fos);
+            //@TODO:Buffer the writes
             FileWriter fw = new FileWriter(workingDir + File.separator + fileBaseName + filePartitionNum, true);
             byte[] buffer;
             int numBytesRead = 0;
