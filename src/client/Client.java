@@ -28,6 +28,7 @@ public class Client {
         MapReduce mapReduce = new MapReduce(
                 new WordCountMapTask(),
                 new WordCountReduceTask(),
+                3,
                 files,
                 " ",
                 "wordCounts.txt",

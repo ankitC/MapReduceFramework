@@ -11,10 +11,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 
 /* The worker class which does the processing as orchestered by the Master */
 public class Worker extends Thread {
@@ -30,7 +27,7 @@ public class Worker extends Thread {
     private final List<Future<?>> tasks;
 
     private static final int NUM_SELF_THREADS = 4;
-    private Map<Command, Map<MapReduce, Map<String, Map<Integer, Future<?>>>>> taskDistribution;
+    private Map<Command, Map<MapReduce, Map<String, Map<Integer, Future<String>>>>> taskDistribution;
 
     public static void main(String[] args) {
 
@@ -50,7 +47,7 @@ public class Worker extends Thread {
         executor = Executors.newFixedThreadPool(Math.max(Config.getWorkerThreads(), NUM_SELF_THREADS));
         tasks = Collections.synchronizedList(new ArrayList<Future<?>>());
         WID = String.format("%s:%d", Inet4Address.getLocalHost().getHostAddress(), port);
-        taskDistribution = new HashMap<Command, Map<MapReduce, Map<String, Map<Integer, Future<?>>>>>();
+        taskDistribution = new HashMap<Command, Map<MapReduce, Map<String, Map<Integer, Future<String>>>>>();
     }
 
     @Override
@@ -63,21 +60,21 @@ public class Worker extends Thread {
     }
 
     /* Adds a task to its own list.*/
-    private void addTask(Command command, MapReduce mapReduce, String filename, int split, Future<?> task) {
+    private void addTask(Command command, MapReduce mapReduce, String filename, int split, Future<String> task) {
 
-        Map<MapReduce, Map<String, Map<Integer, Future<?>>>> m1 = taskDistribution.get(command);
+        Map<MapReduce, Map<String, Map<Integer, Future<String>>>> m1 = taskDistribution.get(command);
         if (m1 == null) {
-            m1 = new ConcurrentHashMap<MapReduce, Map<String, Map<Integer, Future<?>>>>();
+            m1 = new ConcurrentHashMap<MapReduce, Map<String, Map<Integer, Future<String>>>>();
             taskDistribution.put(command, m1);
         }
-        Map<String, Map<Integer, Future<?>>> m2 = m1.get(mapReduce);
+        Map<String, Map<Integer, Future<String>>> m2 = m1.get(mapReduce);
         if (m2 == null) {
-            m2 = new ConcurrentHashMap<String, Map<Integer, Future<?>>>();
+            m2 = new ConcurrentHashMap<String, Map<Integer, Future<String>>>();
             m1.put(mapReduce, m2);
         }
-        Map<Integer, Future<?>> m3 = m2.get(filename);
+        Map<Integer, Future<String>> m3 = m2.get(filename);
         if (m3 == null) {
-            m3 = new ConcurrentHashMap<Integer, Future<?>>();
+            m3 = new ConcurrentHashMap<Integer, Future<String>>();
             m2.put(filename, m3);
         }
         m3.put(split, task);
@@ -92,7 +89,7 @@ public class Worker extends Thread {
     }
 
     /* Removes task from its list once finished */
-    private void removeTask(Command command, MapReduce mapReduce, String filename, int split, Future<?> task) {
+    private void removeTask(Command command, MapReduce mapReduce, String filename, int split) {
         taskDistribution.get(command).get(mapReduce).get(filename).remove(split);
 
         try {
@@ -180,19 +177,20 @@ public class Worker extends Thread {
                                 tasks.remove(task);
                             }
                         }*/
-                        for (Map.Entry<Command, Map<MapReduce, Map<String, Map<Integer, Future<?>>>>> m1
+                        for (Map.Entry<Command, Map<MapReduce, Map<String, Map<Integer, Future<String>>>>> m1
                                 : taskDistribution.entrySet()) {
 
-                            for (Map.Entry<MapReduce, Map<String, Map<Integer, Future<?>>>> m2
+                            for (Map.Entry<MapReduce, Map<String, Map<Integer, Future<String>>>> m2
                                     : taskDistribution.get(m1.getKey()).entrySet()) {
 
-                                for (Map.Entry<String, Map<Integer, Future<?>>> m3
+                                for (Map.Entry<String, Map<Integer, Future<String>>> m3
                                         : taskDistribution.get(m1.getKey()).get(m2.getKey()).entrySet()) {
 
-                                    for (Map.Entry<Integer, Future<?>> m4
+                                    for (Map.Entry<Integer, Future<String>> m4
                                             : taskDistribution.get(m1.getKey()).get(m2.getKey()).get(m3.getKey()).entrySet()) {
 
                                         if (m4.getValue().isDone()) {
+
                                             try {
                                                 Socket master = new Socket(Config.getMasterIP(), Config.getMasterPort());
 
@@ -219,6 +217,8 @@ public class Worker extends Thread {
                                                         m4.getKey(),
                                                         m3.getKey());
 
+                                                removeTask(m1.getKey(), m2.getKey(), m3.getKey(), m4.getKey());
+
                                             } catch (UnknownHostException e) {
                                                 e.printStackTrace();
                                             } catch (IOException e) {
@@ -242,6 +242,52 @@ public class Worker extends Thread {
                 }
             }
         });
+    }
+
+    private void partitionForReduce(String filename, int numSplits) {
+
+        try {
+
+            BufferedReader br = new BufferedReader(new FileReader(filename));
+
+            List<BufferedWriter> writers = new ArrayList<BufferedWriter>();
+
+            for (int i = 0; i < numSplits; i++) {
+
+                String outName = String.format("%s_%d", filename, i);
+                BufferedWriter bw = new BufferedWriter(new FileWriter(outName));
+                writers.add(bw);
+            }
+
+            int size = writers.size();
+
+            String prev = null;
+            String curr;
+
+            BufferedWriter curW = null;
+
+            while ((curr = br.readLine()) != null) {
+                String[] keyVal = curr.split(" ");
+                String key = keyVal[0];
+                if (!key.equals(prev)) {
+                    curW = writers.get(key.hashCode() % size);
+                    prev = key;
+                }
+                curW.write(curr);
+                curW.newLine();
+            }
+
+            for (BufferedWriter bw : writers) {
+                bw.close();
+            }
+
+            br.close();
+
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     /* Handle the incoming message and do the work according to the command in the message */
@@ -279,16 +325,16 @@ public class Worker extends Thread {
 
         int numTasks = 0;
 
-        for (Map.Entry<Command, Map<MapReduce, Map<String, Map<Integer, Future<?>>>>> m1
+        for (Map.Entry<Command, Map<MapReduce, Map<String, Map<Integer, Future<String>>>>> m1
                 : taskDistribution.entrySet()) {
 
-            for (Map.Entry<MapReduce, Map<String, Map<Integer, Future<?>>>> m2
+            for (Map.Entry<MapReduce, Map<String, Map<Integer, Future<String>>>> m2
                     : taskDistribution.get(m1.getKey()).entrySet()) {
 
-                for (Map.Entry<String, Map<Integer, Future<?>>> m3
+                for (Map.Entry<String, Map<Integer, Future<String>>> m3
                         : taskDistribution.get(m1.getKey()).get(m2.getKey()).entrySet()) {
 
-                    for (Map.Entry<Integer, Future<?>> m4
+                    for (Map.Entry<Integer, Future<String>> m4
                             : taskDistribution.get(m1.getKey()).get(m2.getKey()).get(m3.getKey()).entrySet()) {
 
                         numTasks++;
@@ -307,6 +353,7 @@ public class Worker extends Thread {
             out.writeObject("Got COMBINE task");
 
             final MapReduce mapReduce = (MapReduce) in.readObject();
+            final int numReducers = mapReduce.getNumReducers();
 
             System.out.format("Received map task from master:\n\t%s\n", mapReduce.toString());
 
@@ -332,12 +379,21 @@ public class Worker extends Thread {
 
             final Map<String, File> partitionedKeys = partitionKeys(mergesorted, taskName);
 
-            Future<?> job = executor.submit(new ExecuteReduce(
-                    Worker.this,
-                    mapReduce,
-                    new TreeMap<String, File>(partitionedKeys),
-                    Command.COMBINE
-            ));
+            Future<String> job = executor.submit(
+                new Callable<String>() {
+                    @Override
+                    public String call() throws Exception {
+                        String result =
+                            new ExecuteReduce(
+                                Worker.this,
+                                mapReduce,
+                                new TreeMap<String, File>(partitionedKeys),
+                                Command.COMBINE).call();
+                        partitionForReduce(result, mapReduce.getNumReducers());
+                        return result;
+                    }
+                }
+            );
 
             addTask(Command.COMBINE, mapReduce, "", -1, job);
 
@@ -504,7 +560,7 @@ public class Worker extends Thread {
 
             out.writeObject("Starting map task");
 
-            Future<?> job  = executor.submit(new ExecuteMap(this, mapReduce, filename, split));
+            Future<String> job  = executor.submit(new ExecuteMap(this, mapReduce, filename, split));
 
             addTask(Command.MAP, mapReduce, filename, split, job);
 

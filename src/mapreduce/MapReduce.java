@@ -16,20 +16,23 @@ public class MapReduce implements Serializable {
     private final MapTask map;
     private final ReduceTask reduce;
 
+    private final int numReducers;
+
     private final List<File> files;
 
     private final String resultName;
     private String name;
 
-    public MapReduce(MapTask map, ReduceTask reduce, List<File> files, String resultName, String name) {
-        this(map, reduce, files, "", resultName, name);
+    public MapReduce(MapTask map, ReduceTask reduce, int numReducers, List<File> files, String resultName, String name) {
+        this(map, reduce, numReducers, files, "", resultName, name);
     }
 
     //TODO:Replace Name with a system generated jobID
-    public MapReduce(MapTask map, ReduceTask reduce, List<File> files, String delim, String resultName, String name) {
+    public MapReduce(MapTask map, ReduceTask reduce, int numReducers, List<File> files, String delim, String resultName, String name) {
 
         this.map = map;
         this.reduce = reduce;
+        this.numReducers = numReducers;
         this.files = files;
         this.delim = delim;
         this.resultName = resultName;
@@ -53,6 +56,10 @@ public class MapReduce implements Serializable {
         return resultName;
     }
 
+    public int getNumReducers() {
+        return numReducers;
+    }
+
     public List<File> getFiles() {
         return files;
     }
@@ -69,6 +76,10 @@ public class MapReduce implements Serializable {
         return delim;
     }
 
+    public String getName() {
+        return name;
+    }
+
     @Override
     public String toString() {
         return "MapReduce{" +
@@ -78,9 +89,5 @@ public class MapReduce implements Serializable {
                 ", files=" + files +
                 ", resultName='" + resultName + '\'' +
                 '}';
-    }
-
-    public String getName() {
-        return name;
     }
 }

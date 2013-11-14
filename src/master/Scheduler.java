@@ -21,6 +21,8 @@ public class Scheduler {
     private List<MapReduce> combineTasks;
     private List<MapReduce> reduceTasks;
 
+    private Map<MapReduce, List<IPAddress>> reducers;
+
     private Map<String, Map<Command, Map<String, Map<String, List<Integer>>>>> taskDistribution;
 
     Scheduler(Master master) {
@@ -29,6 +31,7 @@ public class Scheduler {
         mapTasks = new ArrayList<MapReduce>();
         combineTasks = new ArrayList<MapReduce>();
         reduceTasks = new ArrayList<MapReduce>();
+        reducers = new HashMap<MapReduce, List<IPAddress>>();
         initTaskDistribution();
     }
 
@@ -64,6 +67,41 @@ public class Scheduler {
                         address, completed, mapReduce.getName(), split, filename, Command.REDUCE);
 
                 removeTask(address.getAddress(), completed, mapReduce, filename, split);
+
+                /*if (reducers.get(mapReduce) == null) {
+                    List<IPAddress> rs = new ArrayList<IPAddress>();
+                    int numRs = Math.min(mapReduce.getNumReducers(),
+                            (int) Math.ceil((double) master.getActiveWorkers().size() / (double) 4 * (double) 3));
+
+                    List<Pair<Integer, IPAddress>> workerLoads = new ArrayList<Pair<Integer, IPAddress>>();
+
+                    for (Map.Entry<IPAddress,Socket> worker : master.getActiveWorkers().entrySet()) {
+                        IPAddress wAddress = worker.getKey();
+                        int workerLoad = getWorkerLoad(wAddress);
+                        workerLoads.add(new Pair<Integer, IPAddress>(workerLoad, wAddress));
+                        System.out.format("Adding worker %s with workload %d\n",
+                                wAddress, workerLoad);
+                    }
+
+                    Collections.sort(workerLoads);
+
+                    Iterator<Pair<Integer, IPAddress>> iterator = workerLoads.iterator();
+
+                    while (numRs > 0) {
+                        while (iterator.hasNext()) {
+                            Pair<Integer, IPAddress> next = iterator.next();
+                            IPAddress worker = next.getY();
+                            rs.add(worker);
+                            if (--numRs <= 0) {
+                                break;
+                            }
+                        }
+
+                        iterator = workerLoads.iterator();
+                    }
+                }
+
+                List<IPAddress> reducers = this.reducers.get(mapReduce);*/
 
                 break;
             case REDUCE:
@@ -193,9 +231,15 @@ public class Scheduler {
 
         String response = master.send(address, s, mapReduce);
 
+
+
         addTask(address.getAddress(), Command.COMBINE, mapReduce, "", -1);
 
         System.out.format("Worker at IP %s responded with: %s\n", address, response);
+    }
+
+    private void reduce() {
+
     }
 
     public List<MapReduce> getMapTasks() {
