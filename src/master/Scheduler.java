@@ -9,8 +9,10 @@ import mapreduce.MapReduce;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Scheduler {
 
@@ -21,7 +23,7 @@ public class Scheduler {
     private List<MapReduce> combineTasks;
     private List<MapReduce> reduceTasks;
 
-    private Map<MapReduce, List<IPAddress>> combineOutputs;
+    private Map<String, List<IPAddress>> combineOutputs;
 
     private Map<String, Map<Command, Map<String, Map<String, List<Integer>>>>> taskDistribution;
 
@@ -31,7 +33,7 @@ public class Scheduler {
         mapTasks = new ArrayList<MapReduce>();
         combineTasks = new ArrayList<MapReduce>();
         reduceTasks = new ArrayList<MapReduce>();
-        combineOutputs = new HashMap<MapReduce, List<IPAddress>>();
+        combineOutputs = new ConcurrentHashMap<String, List<IPAddress>>();
         initTaskDistribution();
     }
 
@@ -68,12 +70,13 @@ public class Scheduler {
 
                 removeTask(address.getAddress(), completed, mapReduce, filename, split);
 
-                if (combineOutputs.get(mapReduce) == null) {
+                if (combineOutputs.get(mapReduce.getName()) == null) {
                     List<IPAddress> outputs = new ArrayList<IPAddress>();
-                    combineOutputs.put(mapReduce, outputs);
+                    combineOutputs.put(mapReduce.getName(), outputs);
                 }
-
-                combineOutputs.get(mapReduce).add(address);
+                System.out.format("Adding worker %s to the list of combiners for task %s\n",
+                        address.getAddress(), mapReduce.getName());
+                combineOutputs.get(mapReduce.getName()).add(address);
 
                 int numCombinesLeft = 0;
 
@@ -262,16 +265,16 @@ public class Scheduler {
                 master.send(worker, socket, Command.REDUCE, args);
                 master.send(worker, socket, mapReduce);
 
-                List<String> addresses = new ArrayList<String>();
-                List<Integer> ports = new ArrayList<Integer>();
+                ObjectOutputStream out = master.getActiveOutputStreams().get(worker);
 
-                for (IPAddress a : combineOutputs.get(mapReduce)) {
-                    addresses.add(a.getAddress());
-                    ports.add(a.getPort() + 2);
+                out.writeObject(combineOutputs.get(mapReduce.getName()).size());
+
+                System.out.format("There are %d combiners for task %s\n", combineOutputs.get(mapReduce.getName()).size(), mapReduce.getName());
+
+                for (IPAddress a : combineOutputs.get(mapReduce.getName())) {
+                    out.writeObject(a.getAddress());
+                    out.writeObject(a.getPort() + 2);
                 }
-
-                master.send(worker, socket, addresses);
-                master.send(worker, socket, ports);
 
                 if (--numRs <= 0) {
                     break;

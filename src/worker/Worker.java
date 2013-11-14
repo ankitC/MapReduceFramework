@@ -4,6 +4,7 @@ import config.Config;
 import io.Command;
 import io.TaskMessage;
 import mapreduce.MapReduce;
+import master.FileManager;
 
 import java.io.*;
 import java.net.Inet4Address;
@@ -381,12 +382,15 @@ public class Worker extends Thread {
 
             System.out.format("Reported a filesize of %d bytes\n", file.length());
 
-            BufferedReader br = new BufferedReader(new FileReader(file));
+            RandomAccessFile rfile = new RandomAccessFile(file, "r");
 
             String line;
+            int bytesSent = 0;
 
-            while ((line = br.readLine()) != null) {
-                out.writeObject(line);
+            while ((line = FileManager.readLine(rfile)) != null) {
+                byte[] bytes = line.getBytes();
+                out.writeObject(bytes);
+                bytesSent += bytes.length;
             }
 
         } catch (IOException e) {
@@ -407,13 +411,15 @@ public class Worker extends Thread {
             final MapReduce mapReduce = (MapReduce) in.readObject();
             out.writeObject("Got MapReduce object");
 
-            @SuppressWarnings("unchecked")
-            List<String> combineAddresses = (List<String>) in.readObject();
-            out.writeObject("Got list of combine addresses");
+            List<String> combineAddresses = new ArrayList<String>();
+            List<Integer> combinePorts = new ArrayList<Integer>();
 
-            @SuppressWarnings("unchecked")
-            List<Integer> combinePorts = (List<Integer>) in.readObject();
-            out.writeObject("Got list of combine ports");
+            int numAddresses = (Integer) in.readObject();
+
+            for (int i = 0; i < numAddresses; i++) {
+                combineAddresses.add((String) in.readObject());
+                combinePorts.add((Integer) in.readObject());
+            }
 
             System.out.format("Received REDUCE task asking me to read split %d of file %s from %d workers\n",
                     splitNum, baseCombineFile, combineAddresses.size());
@@ -441,13 +447,14 @@ public class Worker extends Thread {
                 int numBytesRead = 0;
 
                 while(numBytesRead < fileSize) {
-                    buffer = (byte[]) in.readObject();
+                    buffer = (byte[]) cin.readObject();
 
                     numBytesRead += buffer.length;
 
                     String line = new String(buffer);
 
                     System.out.println(line);
+                    System.out.format("Read %d bytes so far...\n", numBytesRead);
 
                     fw.write(line);
                 }
@@ -462,6 +469,8 @@ public class Worker extends Thread {
 
             String taskName = "PREREDUCE" + mapReduce.getName();
             File mergesorted = mergeSort(filesForMergesort, 0, taskName);
+
+            System.out.format("PREREDUCE + mergesorted file is %s\n", mergesorted.getName());
 
             final Map<String, File> partitionedKeys = partitionKeys(mergesorted, taskName);
 
@@ -630,7 +639,7 @@ public class Worker extends Thread {
             } else {
                 File s1 = sort(f1, i, taskName);
                 File s2 = sort(f2, i, taskName);
-                File m = merge(s1, s2, i, taskName);
+                File m = merge(s1, s2, ++i, taskName);
                 newlySorted.add(m);
             }
         }
@@ -646,7 +655,8 @@ public class Worker extends Thread {
         FileReader fr2 = new FileReader(s2);
         BufferedReader br2 = new BufferedReader(fr2);
 
-        String outName = String.format("%s_%s_%s.txt", "merge", taskName, i);
+        String outName = String.format("%s_%s_%s_%s_%s.txt",
+                "merge", taskName, s1.getName(), s2.getName(), i);
 
         File output = new File(workingDir, outName);
 

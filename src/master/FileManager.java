@@ -170,7 +170,7 @@ public class FileManager {
         return true;
     }
 
-    public String readLine(RandomAccessFile rfile) throws IOException {
+    public static String readLine(RandomAccessFile rfile) throws IOException {
         StringBuilder sb = new StringBuilder();
         int i;
         while (0 <= (i = rfile.read())) {
