@@ -56,7 +56,17 @@ public class Worker extends Thread {
         createWorkingDir();
         startMonitor();
         startHeartbeatListener();
+        startWorkerListener();
         listen(port);
+    }
+
+    private void startWorkerListener() {
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                listen(port + 2);
+            }
+        });
     }
 
     /* Adds a task to its own list.*/
@@ -321,10 +331,33 @@ public class Worker extends Thread {
             case DOWNLOAD:
                 download(task, in, out);
                 break;
+            case UPLOAD:
+                upload(task, in, out);
             case SHUTDOWN:
                 out.writeObject("Shutting down");
                 //@TODO cleanup
                 System.exit(0);
+        }
+    }
+
+    private void upload(TaskMessage task, ObjectInputStream in, ObjectOutputStream out) {
+
+        try {
+            String filename = task.getArgs().get("filename");
+            File file = new File(workingDir + File.separator + filename);
+
+            out.writeObject(Integer.toString((int) file.length()));
+
+            BufferedReader br = new BufferedReader(new FileReader(file));
+
+            String line;
+
+            while ((line = br.readLine()) != null) {
+                out.writeObject(line);
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -338,6 +371,9 @@ public class Worker extends Thread {
             String baseCombineFile = task.getArgs().get("combineFile");
             int splitNum = Integer.parseInt(task.getArgs().get("splitNum"));
 
+            final MapReduce mapReduce = (MapReduce) in.readObject();
+            out.writeObject("Got MapReduce object");
+
             @SuppressWarnings("unchecked")
             List<String> combineAddresses = (List<String>) in.readObject();
             out.writeObject("Got list of combine addresses");
@@ -348,6 +384,60 @@ public class Worker extends Thread {
 
             System.out.format("Received REDUCE task asking me to read split %d of file %s from these workers: %s\n",
                     splitNum, baseCombineFile, combineAddresses.toString());
+
+
+            Map<String, String> args = new HashMap<String, String>();
+            args.put("filename", baseCombineFile + "_" + splitNum);
+
+            List<File> filesForMergesort = new ArrayList<File>();
+
+            for (int i = 0; i < combineAddresses.size(); i++) {
+                String inputName = String.format("%s_%s_%d", "PREREDUCE", mapReduce.getName(), i);
+                File reduceInput = new File(workingDir + File.separator + inputName);
+                FileWriter fw = new FileWriter(reduceInput, true);
+                Socket combiner = new Socket(combineAddresses.get(i), combinePorts.get(i));
+                ObjectOutputStream cout = new ObjectOutputStream(combiner.getOutputStream());
+                ObjectInputStream cin = new ObjectInputStream(combiner.getInputStream());
+
+                cout.writeObject(new TaskMessage(Command.UPLOAD, args));
+                int fileSize = Integer.parseInt((String) cin.readObject());
+
+                byte[] buffer;
+                int numBytesRead = 0;
+
+                while(numBytesRead < fileSize) {
+                    buffer = (byte[]) in.readObject();
+
+                    numBytesRead += buffer.length;
+
+                    String line = new String(buffer);
+
+                    System.out.println(line);
+
+                    fw.write(line);
+                }
+
+                filesForMergesort.add(reduceInput);
+
+                fw.close();
+                cin.close();
+            }
+
+            String taskName = "PREREDUCE" + mapReduce.getName();
+            File mergesorted = mergeSort(filesForMergesort, 0, taskName);
+
+            final Map<String, File> partitionedKeys = partitionKeys(mergesorted, taskName);
+
+            Future<String> job = executor.submit(
+                new ExecuteReduce(
+                    Worker.this,
+                    mapReduce,
+                    new TreeMap<String, File>(partitionedKeys),
+                    Command.COMBINE
+                )
+            );
+
+            addTask(Command.REDUCE, mapReduce, "", -1, job);
 
         } catch (ClassNotFoundException e) {
             e.printStackTrace();

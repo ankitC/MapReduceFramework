@@ -5,6 +5,7 @@ public enum Command {
     HEARTBEAT,
     CURRENT_LOAD,
     DOWNLOAD,
+    UPLOAD,
     MAP,
     COMBINE,
     REDUCE,

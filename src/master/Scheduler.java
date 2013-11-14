@@ -77,10 +77,15 @@ public class Scheduler {
 
                 int numCombinesLeft = 0;
 
-                for (String file : getFiles(address.getAddress(), completed, mapReduce)) {
-                    List<Integer> tasks = getTasks(address.getAddress(), completed, mapReduce, file);
-                    if (tasks != null) {
-                        numCombinesLeft += tasks.size();
+                for (Map.Entry<String, Map<Command, Map<String, Map<String, List<Integer>>>>> m1 : taskDistribution.entrySet()) {
+                    for (Map.Entry<Command, Map<String, Map<String, List<Integer>>>> m2 : m1.getValue().entrySet()) {
+                        for (Map.Entry<String, Map<String, List<Integer>>> m3 : m2.getValue().entrySet()) {
+                            for (Map.Entry<String, List<Integer>> m4 : m3.getValue().entrySet()) {
+                                if (m3.getKey().equals(mapReduce.getName())) {
+                                    numCombinesLeft += m4.getValue().size();
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -90,6 +95,8 @@ public class Scheduler {
 
                 break;
             case REDUCE:
+                System.out.println("FINISHED A FREAKING MAPREDUCE TASK OMFUKCINGGEEEEE");
+                System.out.format("...so anyways, we finished task %s\n", mapReduce.getName());
                 break;
             default:
                 throw new IllegalStateException("Invalid completion status sent");
@@ -253,6 +260,7 @@ public class Scheduler {
 
                 Socket socket = master.getActiveWorkers().get(worker);
                 master.send(worker, socket, Command.REDUCE, args);
+                master.send(worker, socket, mapReduce);
 
                 List<String> addresses = new ArrayList<String>();
                 List<Integer> ports = new ArrayList<Integer>();

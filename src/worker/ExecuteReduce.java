@@ -1,14 +1,13 @@
 package worker;
 
+import common.FileIterator;
 import common.Pair;
 import io.Command;
 import mapreduce.MapReduce;
 import mapreduce.ReduceTask;
 
 import java.io.*;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.concurrent.Callable;
 
 
@@ -56,7 +55,7 @@ public class ExecuteReduce implements Callable<String> {
 
                 ReduceTask reduce = mapReduce.getReduce();
 
-                ReduceIterator iterator = new ReduceIterator(file);
+                FileIterator iterator = new FileIterator(file);
 
                 //System.out.println("here5");
 
@@ -86,7 +85,7 @@ public class ExecuteReduce implements Callable<String> {
         return outputFile.getName();
     }
 
-    private class ReduceIterator implements Iterator<String> {
+    /*private class ReduceIterator implements Iterator<String> {
 
         private BufferedReader reader;
         private String line;
@@ -120,6 +119,6 @@ public class ExecuteReduce implements Callable<String> {
         public void remove() {
             throw new UnsupportedOperationException( "Cannot remove" );
         }
-    }
+    }*/
 }
 
