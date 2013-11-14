@@ -267,7 +267,7 @@ public class Scheduler {
 
                 for (IPAddress a : combineOutputs.get(mapReduce)) {
                     addresses.add(a.getAddress());
-                    ports.add(a.getPort());
+                    ports.add(a.getPort() + 2);
                 }
 
                 master.send(worker, socket, addresses);

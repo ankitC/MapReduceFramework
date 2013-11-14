@@ -64,7 +64,37 @@ public class Worker extends Thread {
         executor.execute(new Runnable() {
             @Override
             public void run() {
-                listen(port + 2);
+                Socket socket = null;
+                try {
+                    int port = Worker.this.port + 2;
+                    ServerSocket serverSocket = new ServerSocket(port);
+
+                    while (true) {
+
+                        socket = serverSocket.accept();
+                        System.out.format("Connected to socket for port %d!\n", port);
+                        ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+                        ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+
+                        try {
+                            TaskMessage task = (TaskMessage) in.readObject();
+
+                            if (!task.getCommand().equals(Command.HEARTBEAT)) {
+                                System.out.format("Received %s task on port %d!\n", task.getCommand().toString(), port);
+                            }
+
+                            handleTask(task, in, out);
+
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        } catch (ClassNotFoundException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    System.out.println("Error making connection");
+                }
             }
         });
     }
@@ -270,7 +300,7 @@ public class Worker extends Thread {
             List<BufferedWriter> writers = new ArrayList<BufferedWriter>();
 
             for (int i = 0; i < numSplits; i++) {
-                String outName = String.format("%s_%d", filename, i);
+                String outName = String.format("%s_%d", filename, i+1);
                 outName = workingDir + File.separator + outName;
                 BufferedWriter bw = new BufferedWriter(new FileWriter(outName));
                 writers.add(bw);
@@ -333,6 +363,7 @@ public class Worker extends Thread {
                 break;
             case UPLOAD:
                 upload(task, in, out);
+                break;
             case SHUTDOWN:
                 out.writeObject("Shutting down");
                 //@TODO cleanup
@@ -347,6 +378,8 @@ public class Worker extends Thread {
             File file = new File(workingDir + File.separator + filename);
 
             out.writeObject(Integer.toString((int) file.length()));
+
+            System.out.format("Reported a filesize of %d bytes\n", file.length());
 
             BufferedReader br = new BufferedReader(new FileReader(file));
 
@@ -382,8 +415,8 @@ public class Worker extends Thread {
             List<Integer> combinePorts = (List<Integer>) in.readObject();
             out.writeObject("Got list of combine ports");
 
-            System.out.format("Received REDUCE task asking me to read split %d of file %s from these workers: %s\n",
-                    splitNum, baseCombineFile, combineAddresses.toString());
+            System.out.format("Received REDUCE task asking me to read split %d of file %s from %d workers\n",
+                    splitNum, baseCombineFile, combineAddresses.size());
 
 
             Map<String, String> args = new HashMap<String, String>();
@@ -402,6 +435,8 @@ public class Worker extends Thread {
                 cout.writeObject(new TaskMessage(Command.UPLOAD, args));
                 int fileSize = Integer.parseInt((String) cin.readObject());
 
+                System.out.format("Expecting %d bytes...\n", fileSize);
+
                 byte[] buffer;
                 int numBytesRead = 0;
 
@@ -416,6 +451,8 @@ public class Worker extends Thread {
 
                     fw.write(line);
                 }
+
+                System.out.format("Done writing %s\n", inputName);
 
                 filesForMergesort.add(reduceInput);
 
@@ -433,7 +470,7 @@ public class Worker extends Thread {
                     Worker.this,
                     mapReduce,
                     new TreeMap<String, File>(partitionedKeys),
-                    Command.COMBINE
+                    Command.REDUCE
                 )
             );
 
