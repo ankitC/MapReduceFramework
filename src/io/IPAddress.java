@@ -50,5 +50,12 @@ public class IPAddress implements Comparable<IPAddress> {
     public int hashCode() {
         return ipAddress != null ? ipAddress.hashCode() : 0;
     }
+
+    @Override
+    public String toString() {
+        return "IPAddress{" +
+                "ipAddress=" + ipAddress +
+                '}';
+    }
 }
 

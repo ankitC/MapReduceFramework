@@ -55,7 +55,7 @@ public class FileManager {
 
                     rfile = new RandomAccessFile(file, "r");
 
-                    System.out.format("File %s has %d lines\n", file.getName(), file.length());
+                    //System.out.format("File %s has %d lines\n", file.getName(), file.length());
 
                     if (fileDistribution.get(file.getName()) == null) {
                         fileDistribution.put(file.getName(), new HashMap<Integer, List<IPAddress>>());
@@ -112,7 +112,7 @@ public class FileManager {
 
                                 rfile.seek(pos);
 
-                                System.out.format("Reading from byte %d%n", pos);
+                                //System.out.format("Reading from byte %d%n", pos);
 
                                 try {
                                     master.getActiveOutputStreams().get(a).writeObject(
@@ -237,8 +237,8 @@ public class FileManager {
 
                     //@TODO send partition line-by-line to worker
 
-                    System.out.format("Worker at IP %s will write at most %d bytes\n",
-                            worker.getKey().getAddress(), bytesPerSplit);
+                    /*System.out.format("Worker at IP %s will write at most %d bytes\n",
+                            worker.getKey().getAddress(), bytesPerSplit);*/
 
                     IPAddress a = worker.getKey();
                     //Socket s = worker.getValue();

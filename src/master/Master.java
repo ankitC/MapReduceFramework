@@ -92,6 +92,7 @@ public class Master {
                             MapReduce mapReduce = (MapReduce) in.readObject();
                             String filename = (String) in.readObject();
                             Integer split = (Integer) in.readObject();
+                            String result = (String) in.readObject();
 
                             String hostAddress = socket.getInetAddress().getHostAddress();
                             IPAddress address = new IPAddress(
@@ -107,7 +108,7 @@ public class Master {
 
                             in.close();
 
-                            scheduler.schedule(completed, mapReduce, filename, split, address);
+                            scheduler.schedule(completed, mapReduce, filename, split, address, result);
 
                         } else {
                             shutdown();
@@ -279,8 +280,8 @@ public class Master {
                 //String response1 = send(a, main, Command.HEARTBEAT, null);
                 String response2 = send(b, heartbeat, Command.HEARTBEAT, (Map<String, String>) null);
 
-                System.out.format("worker.Worker at IP %s\n", a.getAddress());
-                System.out.format("\t\ton port %d responded with message %s\n", b.getPort(), response2);
+                /*System.out.format("worker.Worker at IP %s\n", a.getAddress());
+                System.out.format("\t\ton port %d responded with message %s\n", b.getPort(), response2);*/
 
 
             } catch (Exception e1) {

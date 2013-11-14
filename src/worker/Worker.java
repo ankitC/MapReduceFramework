@@ -2,6 +2,7 @@ package worker;
 
 import config.Config;
 import io.Command;
+import io.IPAddress;
 import io.TaskMessage;
 import mapreduce.MapReduce;
 
@@ -79,26 +80,26 @@ public class Worker extends Thread {
         }
         m3.put(split, task);
 
-        try {
+        /*try {
             System.out.format("For task type %s with MapReduce %s, \n" +
                     "\tsplit %d of file %s is being processed on worker at IP %s\n",
                     command, mapReduce, split, filename, Inet4Address.getLocalHost().getHostAddress());
         } catch (UnknownHostException e) {
             e.printStackTrace();
-        }
+        }*/
     }
 
     /* Removes task from its list once finished */
     private void removeTask(Command command, MapReduce mapReduce, String filename, int split) {
         taskDistribution.get(command).get(mapReduce).get(filename).remove(split);
 
-        try {
+        /*try {
             System.out.format("For task type %s with MapReduce %s, \n" +
                     "\tsplit %d of file %s has finished processed on worker at IP %s\n",
                     command, mapReduce, split, filename, Inet4Address.getLocalHost().getHostAddress());
         } catch (UnknownHostException e) {
             e.printStackTrace();
-        }
+        }*/
     }
 
     /* Create a directory for the DFS which holds the data to be worked upon */
@@ -200,6 +201,11 @@ public class Worker extends Thread {
                                                 out.writeObject(m2.getKey());
                                                 out.writeObject(m3.getKey());
                                                 out.writeObject(m4.getKey());
+                                                try {
+                                                    out.writeObject(m4.getValue().get());
+                                                } catch (Exception e) {
+                                                    out.writeObject(e);
+                                                }
 
                                                 out.close();
 
@@ -248,13 +254,15 @@ public class Worker extends Thread {
 
         try {
 
-            BufferedReader br = new BufferedReader(new FileReader(filename));
+            File fileToSplit = new File(workingDir + File.separator + filename);
+            BufferedReader br = new BufferedReader(new FileReader(
+                    fileToSplit));
 
             List<BufferedWriter> writers = new ArrayList<BufferedWriter>();
 
             for (int i = 0; i < numSplits; i++) {
-
                 String outName = String.format("%s_%d", filename, i);
+                outName = workingDir + File.separator + outName;
                 BufferedWriter bw = new BufferedWriter(new FileWriter(outName));
                 writers.add(bw);
             }
@@ -270,7 +278,7 @@ public class Worker extends Thread {
                 String[] keyVal = curr.split(" ");
                 String key = keyVal[0];
                 if (!key.equals(prev)) {
-                    curW = writers.get(key.hashCode() % size);
+                    curW = writers.get((((key.hashCode() % size) + size) % size));
                     prev = key;
                 }
                 curW.write(curr);
@@ -303,6 +311,7 @@ public class Worker extends Thread {
                 combine(task, in, out);
                 break;
             case REDUCE:
+                reduce(task, in, out);
                 break;
             case HEARTBEAT:
                 out.writeObject("\tWorker" + WID + " is stayin' alive\"");
@@ -317,6 +326,25 @@ public class Worker extends Thread {
                 out.writeObject("Shutting down");
                 //@TODO cleanup
                 System.exit(0);
+        }
+    }
+
+
+    private void reduce(TaskMessage task, ObjectInputStream in, ObjectOutputStream out) {
+
+        try {
+            String baseCombineFile = task.getArgs().get("combineFile");
+            int splitNum = Integer.parseInt(task.getArgs().get("splitNum"));
+
+            @SuppressWarnings("unchecked")
+            List<IPAddress> combineOutputs = (List<IPAddress>) in.readObject();
+
+            System.out.format("Received REDUCE task asking me to read split %d of file %s from these workers: %s\n",
+                    splitNum, baseCombineFile, combineOutputs.toString());
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -355,7 +383,7 @@ public class Worker extends Thread {
             final MapReduce mapReduce = (MapReduce) in.readObject();
             final int numReducers = mapReduce.getNumReducers();
 
-            System.out.format("Received map task from master:\n\t%s\n", mapReduce.toString());
+            //System.out.format("Received map task from master:\n\t%s\n", mapReduce.toString());
 
             out.writeObject("Starting combine task");
 
@@ -371,11 +399,11 @@ public class Worker extends Thread {
                 }
             }
 
-            System.out.println("Performing mergesort");
+            //System.out.println("Performing mergesort");
 
             final File mergesorted = mergeSort(filesForMergeSort, 0, taskName);
 
-            System.out.println("Finished the mergesort, proceeding with COMBINE");
+            //System.out.println("Finished the mergesort, proceeding with COMBINE");
 
             final Map<String, File> partitionedKeys = partitionKeys(mergesorted, taskName);
 
@@ -556,7 +584,7 @@ public class Worker extends Thread {
 
             MapReduce mapReduce = (MapReduce) in.readObject();
 
-            System.out.format("Received map task from master:\n\t%s\n", mapReduce.toString());
+            //System.out.format("Received map task from master:\n\t%s\n", mapReduce.toString());
 
             out.writeObject("Starting map task");
 

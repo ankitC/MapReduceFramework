@@ -43,33 +43,33 @@ public class ExecuteReduce implements Callable<String> {
 
             BufferedWriter bw = new BufferedWriter(fw);
 
-            System.out.println("here2");
+            //System.out.println("here2");
 
             for (Map.Entry<String, File> e : keyVals.entrySet()) {
 
-                System.out.println("here3");
+                //System.out.println("here3");
 
                 String key = e.getKey();
                 File file = e.getValue();
 
-                System.out.println("here4");
+                //System.out.println("here4");
 
                 ReduceTask reduce = mapReduce.getReduce();
 
                 ReduceIterator iterator = new ReduceIterator(file);
 
-                System.out.println("here5");
+                //System.out.println("here5");
 
                 Pair<String, String> result = reduce.reduce(key, iterator);
 
-                System.out.println("here6");
+                //System.out.println("here6");
 
-                String resultString = String.format("%s %s%n", result.getX(), result.getY());
+                String resultString = String.format("%s %s", result.getX(), result.getY());
                 System.out.println(resultString);
                 bw.write(resultString);
                 bw.newLine();
 
-                System.out.println("here7");
+                //System.out.println("here7");
 
             }
 

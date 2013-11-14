@@ -46,4 +46,12 @@ public class Pair<X extends Comparable<X>, Y extends Comparable<Y>> implements C
             return x.compareTo(o.x);
         }
     }
+
+    @Override
+    public String toString() {
+        return "Pair{" +
+                "x=" + x +
+                ", y=" + y +
+                '}';
+    }
 }
