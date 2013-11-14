@@ -253,7 +253,18 @@ public class Scheduler {
 
                 Socket socket = master.getActiveWorkers().get(worker);
                 master.send(worker, socket, Command.REDUCE, args);
-                master.send(worker, socket, combineOutputs.get(mapReduce));
+
+                List<String> addresses = new ArrayList<String>();
+                List<Integer> ports = new ArrayList<Integer>();
+
+                for (IPAddress a : combineOutputs.get(mapReduce)) {
+                    addresses.add(a.getAddress());
+                    ports.add(a.getPort());
+                }
+
+                master.send(worker, socket, addresses);
+                master.send(worker, socket, ports);
+
                 if (--numRs <= 0) {
                     break;
                 }

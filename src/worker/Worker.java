@@ -2,7 +2,6 @@ package worker;
 
 import config.Config;
 import io.Command;
-import io.IPAddress;
 import io.TaskMessage;
 import mapreduce.MapReduce;
 
@@ -333,14 +332,23 @@ public class Worker extends Thread {
     private void reduce(TaskMessage task, ObjectInputStream in, ObjectOutputStream out) {
 
         try {
+
+            out.writeObject("Got REDUCE task");
+
             String baseCombineFile = task.getArgs().get("combineFile");
             int splitNum = Integer.parseInt(task.getArgs().get("splitNum"));
 
             @SuppressWarnings("unchecked")
-            List<IPAddress> combineOutputs = (List<IPAddress>) in.readObject();
+            List<String> combineAddresses = (List<String>) in.readObject();
+            out.writeObject("Got list of combine addresses");
+
+            @SuppressWarnings("unchecked")
+            List<Integer> combinePorts = (List<Integer>) in.readObject();
+            out.writeObject("Got list of combine ports");
 
             System.out.format("Received REDUCE task asking me to read split %d of file %s from these workers: %s\n",
-                    splitNum, baseCombineFile, combineOutputs.toString());
+                    splitNum, baseCombineFile, combineAddresses.toString());
+
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
