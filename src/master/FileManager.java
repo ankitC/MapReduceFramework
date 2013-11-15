@@ -21,9 +21,13 @@ public class FileManager {
     private ConcurrentHashMap<String, Map<Integer, List<IPAddress>>> fileDistribution;
     private Master master;
 
+    private LinkedHashMap<IPAddress,Integer> fileLoad;
+
+
     FileManager(Master master) {
         this.master = master;
         fileDistribution = new ConcurrentHashMap<String, Map<Integer, List<IPAddress>>>();
+        fileLoad = new LinkedHashMap<IPAddress,Integer>();
     }
 
     ConcurrentHashMap<String, Map<Integer, List<IPAddress>>> getFileDistribution() {
@@ -31,7 +35,6 @@ public class FileManager {
     }
 
     /* Initial bootstrap to distribute the data amongst workers */
-
     boolean bootstrap() {
 
         File fileDir = new File(Config.getDataDir());
@@ -102,6 +105,14 @@ public class FileManager {
 
                                 IPAddress a = worker.getKey();
                                 //Socket s = worker.getValue();
+
+
+                                if(!fileLoad.containsKey(a))
+                                    fileLoad.put(a,0);
+                                else{
+                                    fileLoad.put(a,fileLoad.get(a)+1);
+                                }
+
 
                                 Map<String, String> args = new HashMap<String, String>();
                                 args.put("numBytes", Long.toString(Math.min(bytesLeft, bytesPerSplit)));
@@ -192,6 +203,10 @@ public class FileManager {
         Iterator<Map.Entry<IPAddress, Socket>> workers =
                 master.getActiveWorkers().entrySet().iterator();
 
+        fileLoad = helpers.Sort.sortHashMapByValues(fileLoad);
+
+        Iterator<IPAddress> storage_nodes = fileLoad.keySet().iterator();
+
         RandomAccessFile rfile = new RandomAccessFile(file, "r");
         System.out.format("File %s has %d lines\n", file.getName(), file.length());
 
@@ -211,7 +226,7 @@ public class FileManager {
             return false;
         }
 
-                    /* Calculating Splits */
+        /* Calculating Splits */
         int bytesPerSplit = (int) Math.ceil((double) file.length() / (double) Config.getNumSplits());
         long bytesLeft = file.length();
 
@@ -229,19 +244,27 @@ public class FileManager {
             int splitNumBytes = 0;
             int splitNumLines = 0;
 
-                        /* Replicating and Adding data to storage nodes one replica at a time */
+             /* Replicating and Adding data to storage nodes one replica at a time */
             while (numAssigned < Config.getReplicationFactor()) {
-                while (workers.hasNext()) {
+                while (storage_nodes.hasNext()) {
 
-                    Map.Entry<IPAddress, Socket> worker = workers.next();
+                    //Map.Entry<IPAddress, Socket> worker = workers.next();
 
+                    IPAddress target_node = storage_nodes.next();
+                    IPAddress worker = target_node;
                     //@TODO send partition line-by-line to worker
 
                     /*System.out.format("Worker at IP %s will write at most %d bytes\n",
                             worker.getKey().getAddress(), bytesPerSplit);*/
 
-                    IPAddress a = worker.getKey();
+                    IPAddress a = target_node;
                     //Socket s = worker.getValue();
+
+                    if(!fileLoad.containsKey(a))
+                        fileLoad.put(a,0);
+                    else{
+                        fileLoad.put(a,fileLoad.get(a)+1);
+                    }
 
                     Map<String, String> args = new HashMap<String, String>();
                     args.put("numBytes", Long.toString(Math.min(bytesLeft, bytesPerSplit)));
@@ -277,7 +300,7 @@ public class FileManager {
                             "\twith %d number of bytes\n",
                             split, file.getName(), a.getAddress(), bytesWritten);
 
-                    fileDistribution.get(file.getName()).get(split).add(worker.getKey());
+                    fileDistribution.get(file.getName()).get(split).add(worker);
 
                     splitNumBytes += bytesWritten;
 
@@ -287,7 +310,9 @@ public class FileManager {
                 }
 
                 if (numAssigned < Config.getReplicationFactor()) {
-                    workers = master.getActiveWorkers().entrySet().iterator();
+                    //workers = master.getActiveWorkers().entrySet().iterator();
+                    fileLoad = helpers.Sort.sortHashMapByValues(fileLoad);
+                    storage_nodes = fileLoad.keySet().iterator();
                 }
             }
 
