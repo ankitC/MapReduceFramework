@@ -14,7 +14,8 @@ public class WordLengthReduceTask implements ReduceTask, Serializable {
         System.out.println(vs.hasNext());
         while (vs.hasNext()) {
             int i = Integer.parseInt(vs.next());
-            count += i;
+            count= i;
+            break;
         }
         return new Pair<String, String>(k2, Integer.toString(count));
     }

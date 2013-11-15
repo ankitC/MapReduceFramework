@@ -8,6 +8,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+/* Finds the length of the word per word basis */
 public class WordLengthMapTask implements MapTask, Serializable {
 
     public List<Pair<String, String>> map(String k1) {
