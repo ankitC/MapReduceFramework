@@ -38,6 +38,8 @@ public class Master {
 
     private Scheduler scheduler;
 
+    private static int jid;
+
     private Master() {
         heartbeats = new ConcurrentHashMap<IPAddress, Socket>();
         activeWorkers = new ConcurrentHashMap<IPAddress, Socket>();
@@ -148,6 +150,7 @@ public class Master {
                             ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
 
                             MapReduce mapReduce = (MapReduce) in.readObject();
+                            mapReduce.setName(String.valueOf(jid++));
 
                             System.out.println("Received MapReduce task!");
                             System.out.println(mapReduce.toString());

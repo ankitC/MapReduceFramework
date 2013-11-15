@@ -618,7 +618,7 @@ public class Worker extends Thread {
     /* Our very own beloved merge-sort */
     private File mergeSort(List<File> filesForMergeSort, int i, String taskName) throws IOException {
 
-        if (filesForMergeSort.size() == 1) return filesForMergeSort.get(0);
+        /*if (filesForMergeSort.size() == 1) return filesForMergeSort.get(0);
 
         List<File> newlySorted = new ArrayList<File>();
 
@@ -644,7 +644,31 @@ public class Worker extends Thread {
             }
         }
 
-        return mergeSort(newlySorted, ++i, taskName);
+        return mergeSort(newlySorted, ++i, taskName);*/
+
+        File mergesorted = new File(String.format("%s_%s", "mergesorted", taskName));
+        BufferedWriter bw = new BufferedWriter(new FileWriter(mergesorted));
+
+        List<String> allLines = new ArrayList<String>();
+
+        for (File file : filesForMergeSort) {
+            BufferedReader br = new BufferedReader(new FileReader(file));
+            String line;
+            while ((line = br.readLine()) != null) {
+                allLines.add(line);
+            }
+        }
+
+        Collections.sort(allLines);
+
+        for (String line : allLines) {
+            bw.write(line);
+            bw.newLine();
+        }
+
+        bw.close();
+
+        return mergesorted;
     }
 
     /* Merge the two files and write them out */
@@ -664,7 +688,7 @@ public class Worker extends Thread {
         BufferedWriter bw = new BufferedWriter(fw);
 
         String line1;
-        String line2;
+        String line2 = null;
 
         while ((line1 = br1.readLine()) != null) {
             while ((line2 = br2.readLine()) != null) {
@@ -677,6 +701,9 @@ public class Worker extends Thread {
                     bw.newLine();
                 }
             }
+
+            bw.write(line1);
+            bw.newLine();
         }
 
         bw.close();
