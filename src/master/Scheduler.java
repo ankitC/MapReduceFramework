@@ -155,7 +155,8 @@ public class Scheduler {
 
                                             fw.close();
 
-                                            File file = new File(result);
+                                            newResult = newResult.replaceFirst("REDUCE", mapReduce.getResultName());
+                                            File file = new File(newResult);
                                             master.getFileManager().writeToDFS(file);
 
                                             if (!file.delete()) {

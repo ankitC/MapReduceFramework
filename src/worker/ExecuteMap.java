@@ -35,7 +35,7 @@ public class ExecuteMap implements Callable<String> {
                 Command.MAP, mapReduce.getName(), filename, split));
 
         try {
-            FileReader fr = new FileReader(new File(workingDir, filename + split));
+            FileReader fr = new FileReader(new File(workingDir, filename + "_" + split));
             BufferedReader br = new BufferedReader(fr);
 
             FileWriter fw = new FileWriter(outputFile);

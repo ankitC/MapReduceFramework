@@ -866,7 +866,6 @@ public class Worker extends Thread {
         String prereducePartition = String.format("%s_%s%s_", "partition", "PREREDUCE", jid);
         String partition          = String.format("%s_%s_", "partition", jid);
         String prereduce          = String.format("%s_%s_", "PREREDUCE", jid);
-        //@TODO replace with regex to not include DFS reduce output as a match
         String reduce             = String.format("%s_%s_", "REDUCE", jid);
         String map                = String.format("%s_%s_", "MAP", jid);
 
@@ -876,7 +875,7 @@ public class Worker extends Thread {
                 name.contains(prereducePartition) ||
                 name.contains(partition) ||
                 name.contains(prereduce) ||
-        //        name.equals(reduce) ||
+                name.contains(reduce) ||
                 name.contains(map));
     }
 
