@@ -116,7 +116,6 @@ public class Scheduler {
 
                 System.out.format("%d REDUCE tasks left\n", numReducesLeft);
 
-
                 if (numReducesLeft == 0) {
 
                     for (Map.Entry<String, Map<MapReduce, Map<Command, Map<String, List<Integer>>>>> w : completedTasks.entrySet()) {
@@ -127,7 +126,7 @@ public class Scheduler {
                                         if (m.getKey().getName().equals(jid) && c.getKey().equals(Command.REDUCE)) {
 
                                             String newResult = result.substring(0, result.lastIndexOf("_"));
-                                            newResult += s;
+                                            newResult += "_" + s;
                                             Map<String, String> args = new HashMap<String, String>();
                                             args.put("filename", newResult);
 
@@ -163,9 +162,10 @@ public class Scheduler {
                                                 System.out.format("Could not delete temp result file for job %s :(\n", jid);
                                             }
 
-                                            args.put("jid", jid);
+                                            Map<String, String> args2 = new HashMap<String, String>();
+                                            args2.put("jid", jid);
 
-                                            master.send(address, socket, Command.CLEANUP, args);
+                                            System.out.println(master.send(address, socket, Command.CLEANUP, args2) + " BOOYAH");
 
                                             for (Map.Entry<String, Map<MapReduce, Map<Command, Map<String, List<Integer>>>>> worker
                                                     : completedTasks.entrySet()) {

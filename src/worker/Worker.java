@@ -607,8 +607,8 @@ public class Worker extends Thread {
         int keyNum = 0;
 
         while ((line = br.readLine()) != null) {
+            if (line.split(" ").length == 0) continue;
             String key = line.split(" ")[0];
-            String val = line.split(" ")[1];
 
             File fileForKey = partitioned.get(key);
 
@@ -804,7 +804,7 @@ public class Worker extends Thread {
             //FileOutputStream fos = new FileOutputStream(workingDir + File.separator + fileBaseName + filePartitionNum);
             //BufferedOutputStream bout = new BufferedOutputStream(fos);
             //@TODO:Buffer the writes
-            FileWriter fw = new FileWriter(workingDir + File.separator + fileBaseName + filePartitionNum, true);
+            FileWriter fw = new FileWriter(workingDir + File.separator + fileBaseName + "_" + filePartitionNum, true);
             byte[] buffer;
             int numBytesRead = 0;
 
@@ -866,16 +866,17 @@ public class Worker extends Thread {
         String prereducePartition = String.format("%s_%s%s_", "partition", "PREREDUCE", jid);
         String partition          = String.format("%s_%s_", "partition", jid);
         String prereduce          = String.format("%s_%s_", "PREREDUCE", jid);
-        String reduce             = String.format("%s_%s", "REDUCE", jid);
+        //@TODO replace with regex to not include DFS reduce output as a match
+        String reduce             = String.format("%s_%s_", "REDUCE", jid);
         String map                = String.format("%s_%s_", "MAP", jid);
 
-        return
+        return name.matches(reduce + "\\d") &&
                (name.equals(combine) ||
                 name.contains(combineSplit) ||
                 name.contains(prereducePartition) ||
                 name.contains(partition) ||
                 name.contains(prereduce) ||
-                name.equals(reduce) ||
+        //        name.equals(reduce) ||
                 name.contains(map));
     }
 
