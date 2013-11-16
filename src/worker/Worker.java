@@ -365,10 +365,26 @@ public class Worker extends Thread {
             case UPLOAD:
                 upload(task, in, out);
                 break;
+            case CLEANUP:
+                cleanup(task, in, out);
+                break;
             case SHUTDOWN:
                 out.writeObject("Shutting down");
                 //@TODO cleanup
                 System.exit(0);
+        }
+    }
+
+    private void cleanup(TaskMessage task, ObjectInputStream in, ObjectOutputStream out) {
+        try {
+            String jid = task.getArgs().get("jid");
+            if (cleanup(jid)) {
+                out.writeObject("Successfully cleaned up files for task " + jid);
+            } else {
+                out.writeObject("Could not clean up all files for task " + jid);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -813,6 +829,51 @@ public class Worker extends Thread {
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
+    }
+
+    private boolean cleanup(String jid) {
+
+
+        File[] files = workingDir.listFiles();
+
+        boolean allDeleted = true;
+
+        if (files != null) {
+            for (File file : files) {
+                if (match(file, jid)) {
+                    allDeleted &= file.delete();
+                }
+            }
+        }
+
+        if (!allDeleted) {
+            System.out.println("Could not delete all files!");
+        }
+
+        return allDeleted;
+    }
+
+    private boolean match(File file, String jid) {
+        String name = file.getName();
+
+        if (name == null) return false;
+
+        String combine            = String.format("%s_%s", "COMBINE", jid);
+        String combineSplit       = String.format("%s_%s_", "COMBINE", jid);
+        String prereducePartition = String.format("%s_%s%s_", "partition", "PREREDUCE", jid);
+        String partition          = String.format("%s_%s_", "partition", jid);
+        String prereduce          = String.format("%s_%s_", "PREREDUCE", jid);
+        String reduce             = String.format("%s_%s", "REDUCE", jid);
+        String map                = String.format("%s_%s_", "MAP", jid);
+
+        return
+               (name.equals(combine) ||
+                name.contains(combineSplit) ||
+                name.contains(prereducePartition) ||
+                name.contains(partition) ||
+                name.contains(prereduce) ||
+                name.equals(reduce) ||
+                name.contains(map));
     }
 
     File getWorkingDir() {

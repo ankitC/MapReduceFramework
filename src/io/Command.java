@@ -9,5 +9,6 @@ public enum Command {
     MAP,
     COMBINE,
     REDUCE,
+    CLEANUP,
     SHUTDOWN
 }

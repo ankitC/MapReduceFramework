@@ -10,10 +10,7 @@ import mapreduce.MapReduce;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutorService;
@@ -213,7 +210,9 @@ public class Master {
                             findFile(filename);
                         }
                     } else if (tokens[1].equals("jobs")) {
-                        System.out.println("Not yet implemented");
+                        for (String job : findAllJobs()) {
+                            findJob(job);
+                        }
                     } else {
                         System.out.println("Invalid command, " +
                                 "please choose one of (workers, files, jobs) to list");
@@ -226,7 +225,7 @@ public class Master {
                     if (tokens[1].equals("file")) {
                         findFile(tokens[2]);
                     } else if (tokens[1].equals("job")) {
-                        System.out.println("Not yet implemented");
+                        findJob(tokens[2]);
                     } else {
                         System.out.println("Please specify one of (worker, file, job) to find, " +
                                 "along with its name / ID");
@@ -239,6 +238,39 @@ public class Master {
 
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    private List<String> findAllJobs() {
+        List<String> jobs = new ArrayList<String>();
+
+        Map<String, Map<Command, Map<String, Map<String, List<Integer>>>>> tasks  = scheduler.getTaskDistribution();
+
+        for (Map.Entry<String, Map<Command, Map<String, Map<String, List<Integer>>>>> address : tasks.entrySet()) {
+            for (Map.Entry<Command, Map<String, Map<String, List<Integer>>>> command : address.getValue().entrySet()) {
+                for (Map.Entry<String, Map<String, List<Integer>>> jid : command.getValue().entrySet()) {
+                    jobs.add(jid.getKey());
+                }
+            }
+        }
+
+        return jobs;
+    }
+
+    private void findJob(String token) {
+
+        Map<String, Map<Command, Map<String, Map<String, List<Integer>>>>> tasks  = scheduler.getTaskDistribution();
+
+        System.out.format("Job %s is being processed as follows:\n", token);
+
+        for (Map.Entry<String, Map<Command, Map<String, Map<String, List<Integer>>>>> address : tasks.entrySet()) {
+            for (Map.Entry<Command, Map<String, Map<String, List<Integer>>>> command : address.getValue().entrySet()) {
+                for (Map.Entry<String, Map<String, List<Integer>>> jid : command.getValue().entrySet()) {
+                    if (jid.getKey().equals(token)) {
+                        System.out.format("\t%s on worker %s\n", command.getKey(), address.getKey());
+                    }
+                }
+            }
         }
     }
 
@@ -495,6 +527,10 @@ public class Master {
 
     ConcurrentHashMap<IPAddress, ObjectInputStream> getActiveInputStreams() {
         return activeInputStreams;
+    }
+
+    Scheduler getScheduler() {
+        return scheduler;
     }
 
     public String send(String a, Socket s, Command command, Map<String, String> args) throws IOException, ClassNotFoundException {

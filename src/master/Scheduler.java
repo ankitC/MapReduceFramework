@@ -7,9 +7,7 @@ import io.IPAddress;
 import io.TaskMessage;
 import mapreduce.MapReduce;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.net.Socket;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -40,11 +38,12 @@ public class Scheduler {
     void schedule(Command completed, MapReduce mapReduce,
                   String filename, int split, IPAddress address, String result) throws IOException, ClassNotFoundException {
 
+        String jid = mapReduce.getName();
         switch (completed) {
             case MAP:
                 System.out.format("Now that worker at IP %s has finished phase %s of task %s, " +
                         "processing split %d of file %s, we now send it a %s task\n",
-                        address, completed, mapReduce.getName(), split, filename, Command.COMBINE);
+                        address, completed, jid, split, filename, Command.COMBINE);
 
                 removeTask(address.getAddress(), completed, mapReduce, filename, split);
 
@@ -66,17 +65,17 @@ public class Scheduler {
             case COMBINE:
                 System.out.format("Now that worker at IP %s has finished phase %s of task %s, " +
                         "processing split %d of file %s, we now do a global %s task\n",
-                        address, completed, mapReduce.getName(), split, filename, Command.REDUCE);
+                        address, completed, jid, split, filename, Command.REDUCE);
 
                 removeTask(address.getAddress(), completed, mapReduce, filename, split);
 
-                if (combineOutputs.get(mapReduce.getName()) == null) {
+                if (combineOutputs.get(jid) == null) {
                     List<IPAddress> outputs = new ArrayList<IPAddress>();
-                    combineOutputs.put(mapReduce.getName(), outputs);
+                    combineOutputs.put(jid, outputs);
                 }
                 System.out.format("Adding worker %s to the list of combiners for task %s\n",
-                        address.getAddress(), mapReduce.getName());
-                combineOutputs.get(mapReduce.getName()).add(address);
+                        address.getAddress(), jid);
+                combineOutputs.get(jid).add(address);
 
                 int numCombinesLeft = 0;
 
@@ -84,7 +83,7 @@ public class Scheduler {
                     for (Map.Entry<Command, Map<String, Map<String, List<Integer>>>> m2 : m1.getValue().entrySet()) {
                         for (Map.Entry<String, Map<String, List<Integer>>> m3 : m2.getValue().entrySet()) {
                             for (Map.Entry<String, List<Integer>> m4 : m3.getValue().entrySet()) {
-                                if (m3.getKey().equals(mapReduce.getName())) {
+                                if (m3.getKey().equals(jid)) {
                                     numCombinesLeft += m4.getValue().size();
                                 }
                             }
@@ -99,7 +98,49 @@ public class Scheduler {
                 break;
             case REDUCE:
                 System.out.println("FINISHED A FREAKING MAPREDUCE TASK OMFUKCINGGEEEEE");
-                System.out.format("...so anyways, we finished task %s\n", mapReduce.getName());
+                System.out.format("...so anyways, we finished task %s\n", jid);
+
+                Map<String, String> args = new HashMap<String, String>();
+                args.put("filename", result);
+
+                Socket socket = master.getActiveWorkers().get(address);
+                int fileNumBytes = Integer.parseInt(master.send(address, socket, Command.UPLOAD, args));
+
+                ObjectInputStream in = master.getActiveInputStreams().get(address);
+
+                FileWriter fw = new FileWriter(result);
+                byte[] buffer;
+                int numBytesRead = 0;
+
+                while(numBytesRead < fileNumBytes) {
+                    buffer = (byte[]) in.readObject();
+
+                    numBytesRead += buffer.length;
+
+                    String line = new String(buffer);
+
+                    System.out.println(line);
+
+                    fw.write(line);
+                }
+
+                fw.close();
+
+                File file = new File(result);
+                master.getFileManager().writeToDFS(file);
+
+                if (!file.delete()) {
+                    System.out.format("Could not delete temp result file for job %s :(\n", jid);
+                }
+
+                args.put("jid", jid);
+
+                master.send(address, socket, Command.CLEANUP, args);
+
+                removeTask(address.getAddress(), completed, mapReduce, filename, split);
+
+
+
                 break;
             default:
                 throw new IllegalStateException("Invalid completion status sent");
@@ -295,6 +336,10 @@ public class Scheduler {
 
     public List<MapReduce> getReduceTasks() {
         return reduceTasks;
+    }
+
+    public Map<String, Map<Command, Map<String, Map<String, List<Integer>>>>> getTaskDistribution() {
+        return taskDistribution;
     }
 
     private int getWorkerLoad(IPAddress worker) {
