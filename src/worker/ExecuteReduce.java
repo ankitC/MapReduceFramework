@@ -16,12 +16,14 @@ public class ExecuteReduce implements Callable<String> {
 
     private Worker worker;
     private MapReduce mapReduce;
+    private int splitNum;
     private Map<String, File> keyVals;
     private Command command;
 
-    ExecuteReduce(Worker worker, MapReduce mapReduce, Map<String, File> keyVals, Command command) {
+    ExecuteReduce(Worker worker, MapReduce mapReduce, int splitNum, Map<String, File> keyVals, Command command) {
         this.worker = worker;
         this.mapReduce = mapReduce;
+        this.splitNum = splitNum;
         this.keyVals = keyVals;
         this.command = command;
     }
@@ -32,8 +34,8 @@ public class ExecuteReduce implements Callable<String> {
         String delim = mapReduce.getDelim();
         File workingDir = worker.getWorkingDir();
 
-        File outputFile = new File(workingDir, String.format("%s_%s",
-                command, mapReduce.getName()));
+        File outputFile = new File(workingDir, String.format("%s_%s_%d",
+                command, mapReduce.getName(), splitNum));
 
         System.out.println("here1");
 

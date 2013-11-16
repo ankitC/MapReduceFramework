@@ -99,4 +99,20 @@ public class MapReduce implements Serializable, Comparable<MapReduce> {
     public int compareTo(MapReduce o) {
         return name.compareTo(o.name);
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof MapReduce)) return false;
+
+        MapReduce mapReduce = (MapReduce) o;
+
+        return name.equals(mapReduce.name);
+
+    }
+
+    @Override
+    public int hashCode() {
+        return name.hashCode();
+    }
 }

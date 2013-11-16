@@ -403,11 +403,13 @@ public class Worker extends Thread {
             String line;
             int bytesSent = 0;
 
-            while ((line = FileManager.readLine(rfile)) != null) {
+            while ((line = FileManager.readLine(rfile)) != null && !line.isEmpty()) {
                 byte[] bytes = line.getBytes();
                 out.writeObject(bytes);
                 bytesSent += bytes.length;
             }
+
+            System.out.format("Send %d bytes!\n", bytesSent);
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -494,12 +496,13 @@ public class Worker extends Thread {
                 new ExecuteReduce(
                     Worker.this,
                     mapReduce,
+                    splitNum,
                     new TreeMap<String, File>(partitionedKeys),
                     Command.REDUCE
                 )
             );
 
-            addTask(Command.REDUCE, mapReduce, "", -1, job);
+            addTask(Command.REDUCE, mapReduce, baseCombineFile, splitNum, job);
 
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
@@ -575,7 +578,7 @@ public class Worker extends Thread {
                             new ExecuteReduce(
                                 Worker.this,
                                 mapReduce,
-                                new TreeMap<String, File>(partitionedKeys),
+                                    -1, new TreeMap<String, File>(partitionedKeys),
                                 Command.COMBINE).call();
                         partitionForReduce(result, mapReduce.getNumReducers());
                         return result;

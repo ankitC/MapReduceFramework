@@ -97,65 +97,87 @@ public class Scheduler {
                 System.out.println("FINISHED A FREAKING MAPREDUCE TASK OMFUKCINGGEEEEE");
                 System.out.format("...so anyways, we finished task %s\n", jid);
 
+                removeTask(address.getAddress(), completed, mapReduce, filename, split, taskDistribution);
+                addTask(address.getAddress(), completed, mapReduce, filename, split, completedTasks);
+
                 int numReducesLeft = 0;
 
-                for (Map.Entry<String, Map<MapReduce, Map<Command, Map<String, List<Integer>>>>> m1 : taskDistribution.entrySet()) {
-                    for (Map.Entry<MapReduce, Map<Command, Map<String, List<Integer>>>> m2 : m1.getValue().entrySet()) {
-                        for (Map.Entry<Command, Map<String, List<Integer>>> m3 : m2.getValue().entrySet()) {
-                            for (Map.Entry<String, List<Integer>> m4 : m3.getValue().entrySet()) {
-                                if (m2.getKey().getName().equals(jid) && m3.getKey().equals(Command.REDUCE)) {
-                                    numReducesLeft += m4.getValue().size();
+                for (Map.Entry<String, Map<MapReduce, Map<Command, Map<String, List<Integer>>>>> w : taskDistribution.entrySet()) {
+                    for (Map.Entry<MapReduce, Map<Command, Map<String, List<Integer>>>> m : w.getValue().entrySet()) {
+                        for (Map.Entry<Command, Map<String, List<Integer>>> c : m.getValue().entrySet()) {
+                            for (Map.Entry<String, List<Integer>> f : c.getValue().entrySet()) {
+                                if (m.getKey().getName().equals(jid) && c.getKey().equals(Command.REDUCE)) {
+                                    numReducesLeft += f.getValue().size();
                                 }
                             }
                         }
                     }
                 }
 
-                removeTask(address.getAddress(), completed, mapReduce, filename, split, taskDistribution);
-                addTask(address.getAddress(), completed, mapReduce, filename, split, completedTasks);
+                System.out.format("%d REDUCE tasks left\n", numReducesLeft);
+
 
                 if (numReducesLeft == 0) {
-                    Map<String, String> args = new HashMap<String, String>();
-                    args.put("filename", result);
 
-                    Socket socket = master.getActiveWorkers().get(address);
-                    int fileNumBytes = Integer.parseInt(master.send(address, socket, Command.UPLOAD, args));
+                    for (Map.Entry<String, Map<MapReduce, Map<Command, Map<String, List<Integer>>>>> w : completedTasks.entrySet()) {
+                        for (Map.Entry<MapReduce, Map<Command, Map<String, List<Integer>>>> m : w.getValue().entrySet()) {
+                            for (Map.Entry<Command, Map<String, List<Integer>>> c : m.getValue().entrySet()) {
+                                for (Map.Entry<String, List<Integer>> f : c.getValue().entrySet()) {
+                                    for (Integer s : f.getValue()) {
+                                        if (m.getKey().getName().equals(jid) && c.getKey().equals(Command.REDUCE)) {
 
-                    ObjectInputStream in = master.getActiveInputStreams().get(address);
+                                            String newResult = result.substring(0, result.lastIndexOf("_"));
+                                            newResult += s;
+                                            Map<String, String> args = new HashMap<String, String>();
+                                            args.put("filename", newResult);
 
-                    FileWriter fw = new FileWriter(result);
-                    byte[] buffer;
-                    int numBytesRead = 0;
+                                            Socket socket = master.getActiveWorkers().get(address);
+                                            int fileNumBytes = Integer.parseInt(master.send(address, socket, Command.UPLOAD, args));
 
-                    while(numBytesRead < fileNumBytes) {
-                        buffer = (byte[]) in.readObject();
+                                            ObjectInputStream in = master.getActiveInputStreams().get(address);
 
-                        numBytesRead += buffer.length;
+                                            FileWriter fw = new FileWriter(result);
+                                            byte[] buffer;
+                                            int numBytesRead = 0;
 
-                        String line = new String(buffer);
+                                            while(numBytesRead < fileNumBytes) {
+                                                buffer = (byte[]) in.readObject();
 
-                        System.out.println(line);
+                                                numBytesRead += buffer.length;
 
-                        fw.write(line);
+                                                String line = new String(buffer);
+
+                                                System.out.println(line);
+
+                                                fw.write(line);
+                                            }
+
+                                            System.out.format("Read %d bytes!\n", numBytesRead);
+
+                                            fw.close();
+
+                                            File file = new File(result);
+                                            master.getFileManager().writeToDFS(file);
+
+                                            if (!file.delete()) {
+                                                System.out.format("Could not delete temp result file for job %s :(\n", jid);
+                                            }
+
+                                            args.put("jid", jid);
+
+                                            master.send(address, socket, Command.CLEANUP, args);
+
+                                            for (Map.Entry<String, Map<MapReduce, Map<Command, Map<String, List<Integer>>>>> worker
+                                                    : completedTasks.entrySet()) {
+                                                worker.getValue().remove(mapReduce);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
-                    fw.close();
-
-                    File file = new File(result);
-                    master.getFileManager().writeToDFS(file);
-
-                    if (!file.delete()) {
-                        System.out.format("Could not delete temp result file for job %s :(\n", jid);
-                    }
-
-                    args.put("jid", jid);
-
-                    master.send(address, socket, Command.CLEANUP, args);
-
-                    for (Map.Entry<String, Map<MapReduce, Map<Command, Map<String, List<Integer>>>>> worker
-                            : completedTasks.entrySet()) {
-                        worker.getValue().remove(mapReduce);
-                    }
                 }
 
                 break;
@@ -317,6 +339,8 @@ public class Scheduler {
                     out.writeObject(a.getAddress());
                     out.writeObject(a.getPort() + 2);
                 }
+
+                addTask(worker.getAddress(), Command.REDUCE, mapReduce, result, numRs, taskDistribution);
 
                 if (--numRs <= 0) {
                     break;

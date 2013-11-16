@@ -99,19 +99,26 @@ public class Master {
                                     baseWorkerPortMap.get(hostAddress)
                             );
 
-                            if (scheduler.getTaskDistribution()
-                                    .get(hostAddress)
-                                    .get(mapReduce)
-                                    .get(completed)
-                                    .get(filename)
-                                    .contains(split)) {
-
-                                System.out.format("Worker at IP %s completed the %s phase of the %s MapReduce task\n" +
-                                        "for split %d of file %s!\n",
-                                        hostAddress, completed, mapReduce.toString(),
-                                        split, filename);
-                                System.out.println(mapReduce.toString());
-                                scheduler.schedule(completed, mapReduce, filename, split, address, result);
+                            Map<String, Map<MapReduce, Map<Command, Map<String, List<Integer>>>>> taskDistribution = scheduler.getTaskDistribution();
+                            if (taskDistribution.containsKey(hostAddress)) {
+                                Map<MapReduce, Map<Command, Map<String, List<Integer>>>> m = taskDistribution.get(hostAddress);
+                                if (m.containsKey(mapReduce)) {
+                                    Map<Command, Map<String, List<Integer>>> c = m.get(mapReduce);
+                                    if (c.containsKey(completed)) {
+                                        Map<String, List<Integer>> f = c.get(completed);
+                                        if (f.containsKey(filename)) {
+                                            List<Integer> s = f.get(filename);
+                                            if (s.contains(split)) {
+                                                System.out.format("Worker at IP %s completed the %s phase of the %s MapReduce task\n" +
+                                                        "for split %d of file %s!\n",
+                                                        hostAddress, completed, mapReduce.toString(),
+                                                        split, filename);
+                                                System.out.println(mapReduce.toString());
+                                                scheduler.schedule(completed, mapReduce, filename, split, address, result);
+                                            }
+                                        }
+                                    }
+                                }
                             } else {
                                 System.out.format("Could not find task %s on file %s split %d for job %s in the list" +
                                         "of assigned tasks for worker %s, must have been cancelled. Ignoring.\n",
@@ -400,7 +407,7 @@ public class Master {
                         for (Integer split : filename.getValue()) {
                             switch (command.getKey()) {
                                 case MAP:
-                                    scheduler.map(mapReduce.getKey(), filename.getKey(), split);
+                                    scheduler.remap(mapReduce.getKey(), filename.getKey(), split);
                                 case COMBINE:
                                     for (Map.Entry<MapReduce, Map<Command, Map<String, List<Integer>>>> m
                                             : scheduler.getCompletedTasks().get(worker.getAddress()).entrySet()) {
