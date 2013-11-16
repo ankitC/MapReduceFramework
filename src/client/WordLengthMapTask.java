@@ -18,10 +18,10 @@ public class WordLengthMapTask implements MapTask, Serializable {
             String[] subitems = item.split("-");
             for (String subitem : subitems) {
                 mapped.add(new Pair<String, String>(
+                        String.valueOf(subitem.length()),
                         subitem
                                 .toLowerCase()
-                                .replaceAll("[\\s\\.,\\(\\)\']", ""),
-                        String.valueOf(subitem.length())));
+                                .replaceAll("[\\s\\.,\\(\\)\']", "")));
             }
         }
         return mapped;
