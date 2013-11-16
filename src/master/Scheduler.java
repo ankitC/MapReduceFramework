@@ -132,10 +132,13 @@ public class Scheduler {
 
                                             System.out.println("here1");
 
-                                            Socket socket = master.getActiveWorkers().get(address);
-                                            int fileNumBytes = Integer.parseInt(master.send(address, socket, Command.UPLOAD, args));
+                                            IPAddress worker =
+                                                    new IPAddress(w.getKey(), master.getBaseWorkerPortMap().get(w.getKey()));
 
-                                            ObjectInputStream in = master.getActiveInputStreams().get(address);
+                                            Socket socket = master.getActiveWorkers().get(worker);
+                                            int fileNumBytes = Integer.parseInt(master.send(worker.getAddress(), socket, Command.UPLOAD, args));
+
+                                            ObjectInputStream in = master.getActiveInputStreams().get(worker);
 
                                             newResult = newResult.replaceFirst("REDUCE", mapReduce.getResultName());
                                             FileWriter fw = new FileWriter(newResult);
@@ -168,14 +171,15 @@ public class Scheduler {
                                             Map<String, String> args2 = new HashMap<String, String>();
                                             args2.put("jid", jid);
 
-                                            //System.out.println(master.send(address, socket, Command.CLEANUP, args2) + " BOOYAH");
+                                            System.out.println(master.send(worker.getAddress(), socket, Command.CLEANUP, args2) + " BOOYAH");
 
-                                            for (Map.Entry<String, Map<MapReduce, Map<Command, Map<String, List<Integer>>>>> worker
+                                            for (Map.Entry<String, Map<MapReduce, Map<Command, Map<String, List<Integer>>>>> workers
                                                     : completedTasks.entrySet()) {
-                                                worker.getValue().remove(mapReduce);
+                                                workers.getValue().remove(mapReduce);
                                             }
                                         }
                                     }
+                                    System.out.println("Outside");
                                 }
                             }
                         }

@@ -27,6 +27,10 @@ public class Master {
     private ConcurrentHashMap<IPAddress, ObjectOutputStream> activeOutputStreams;
     private ConcurrentHashMap<IPAddress, ObjectInputStream> activeInputStreams;
 
+    Map<String, Integer> getBaseWorkerPortMap() {
+        return baseWorkerPortMap;
+    }
+
     private Map<String, Integer> baseWorkerPortMap;
 
     private Set<IPAddress> disconnectedWorkers;
@@ -91,7 +95,15 @@ public class Master {
                             MapReduce mapReduce = (MapReduce) in.readObject();
                             String filename = (String) in.readObject();
                             Integer split = (Integer) in.readObject();
-                            String result = (String) in.readObject();
+                            Object resulto = in.readObject();
+                            String result = null;
+
+                            if (resulto instanceof String) {
+                                result = (String) resulto;
+                            } else {
+                                result = ((Exception) resulto).getLocalizedMessage();
+                                System.out.println("Exception: " + result);
+                            }
 
                             String hostAddress = socket.getInetAddress().getHostAddress();
                             IPAddress address = new IPAddress(
