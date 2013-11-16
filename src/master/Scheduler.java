@@ -130,12 +130,15 @@ public class Scheduler {
                                             Map<String, String> args = new HashMap<String, String>();
                                             args.put("filename", newResult);
 
+                                            System.out.println("here1");
+
                                             Socket socket = master.getActiveWorkers().get(address);
                                             int fileNumBytes = Integer.parseInt(master.send(address, socket, Command.UPLOAD, args));
 
                                             ObjectInputStream in = master.getActiveInputStreams().get(address);
 
-                                            FileWriter fw = new FileWriter(result);
+                                            newResult = newResult.replaceFirst("REDUCE", mapReduce.getResultName());
+                                            FileWriter fw = new FileWriter(newResult);
                                             byte[] buffer;
                                             int numBytesRead = 0;
 
@@ -155,7 +158,6 @@ public class Scheduler {
 
                                             fw.close();
 
-                                            newResult = newResult.replaceFirst("REDUCE", mapReduce.getResultName());
                                             File file = new File(newResult);
                                             master.getFileManager().writeToDFS(file);
 
@@ -166,7 +168,7 @@ public class Scheduler {
                                             Map<String, String> args2 = new HashMap<String, String>();
                                             args2.put("jid", jid);
 
-                                            System.out.println(master.send(address, socket, Command.CLEANUP, args2) + " BOOYAH");
+                                            //System.out.println(master.send(address, socket, Command.CLEANUP, args2) + " BOOYAH");
 
                                             for (Map.Entry<String, Map<MapReduce, Map<Command, Map<String, List<Integer>>>>> worker
                                                     : completedTasks.entrySet()) {

@@ -869,7 +869,7 @@ public class Worker extends Thread {
         String reduce             = String.format("%s_%s_", "REDUCE", jid);
         String map                = String.format("%s_%s_", "MAP", jid);
 
-        return name.matches(reduce + "\\d") &&
+        return name.matches(reduce + "\\d") ||
                (name.equals(combine) ||
                 name.contains(combineSplit) ||
                 name.contains(prereducePartition) ||
