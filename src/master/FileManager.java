@@ -21,7 +21,7 @@ public class FileManager {
     private ConcurrentHashMap<String, Map<Integer, List<IPAddress>>> fileDistribution;
     private Master master;
 
-    private LinkedHashMap<IPAddress,Integer> fileLoad;
+    private Map<IPAddress,Integer> fileLoad;
 
 
     FileManager(Master master) {
@@ -250,20 +250,20 @@ public class FileManager {
 
                     //Map.Entry<IPAddress, Socket> worker = workers.next();
 
-                    IPAddress target_node = storage_nodes.next();
-                    IPAddress worker = target_node;
+                    //IPAddress worker = storage_nodes.next();
+                    //IPAddress worker = target_node;
                     //@TODO send partition line-by-line to worker
 
                     /*System.out.format("Worker at IP %s will write at most %d bytes\n",
                             worker.getKey().getAddress(), bytesPerSplit);*/
 
-                    IPAddress a = target_node;
+                    IPAddress worker = storage_nodes.next();
                     //Socket s = worker.getValue();
 
-                    if(!fileLoad.containsKey(a))
-                        fileLoad.put(a,0);
+                    if(!fileLoad.containsKey(worker))
+                        fileLoad.put(worker,0);
                     else{
-                        fileLoad.put(a,fileLoad.get(a)+1);
+                        fileLoad.put(worker,fileLoad.get(worker)+1);
                     }
 
                     Map<String, String> args = new HashMap<String, String>();
@@ -278,7 +278,7 @@ public class FileManager {
                     System.out.format("Reading from byte %d%n", pos);
 
                     try {
-                        master.getActiveOutputStreams().get(a).writeObject(
+                        master.getActiveOutputStreams().get(worker).writeObject(
                                 new TaskMessage(Command.DOWNLOAD, args)
                         );
 
@@ -287,7 +287,7 @@ public class FileManager {
                                 (line = readLine(rfile)) != null &&
                                 !line.isEmpty()) {
 
-                            master.getActiveOutputStreams().get(a).writeObject(line.getBytes());
+                            master.getActiveOutputStreams().get(worker).writeObject(line.getBytes());
                             bytesWritten += line.getBytes().length;
                             splitNumLines++;
                         }
@@ -298,7 +298,7 @@ public class FileManager {
 
                     System.out.format("Sent split %d of file %s to worker at IP %s\n" +
                             "\twith %d number of bytes\n",
-                            split, file.getName(), a.getAddress(), bytesWritten);
+                            split, file.getName(), worker.getAddress(), bytesWritten);
 
                     fileDistribution.get(file.getName()).get(split).add(worker);
 

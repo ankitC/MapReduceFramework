@@ -1,7 +1,5 @@
 package helpers;
 
-import io.IPAddress;
-
 import java.util.*;
 
 /* Simple Sorter for LinkedHashMaps
@@ -11,28 +9,24 @@ import java.util.*;
 public class Sort {
 
 
-    public static LinkedHashMap sortHashMapByValues(HashMap passedMap) {
-        List mapKeys = new ArrayList(passedMap.keySet());
-        List mapValues = new ArrayList(passedMap.values());
+    public static <K extends Comparable<K>, V extends Comparable<V>> Map<K, V> sortHashMapByValues(Map<K, V> passedMap) {
+        List<K> mapKeys = new ArrayList<K>(passedMap.keySet());
+        List<V> mapValues = new ArrayList<V>(passedMap.values());
         Collections.sort(mapValues);
         Collections.sort(mapKeys);
 
-        LinkedHashMap sortedMap = new LinkedHashMap();
+        LinkedHashMap<K, V> sortedMap = new LinkedHashMap<K, V>();
 
-        Iterator valueIt = mapValues.iterator();
-        while (valueIt.hasNext()) {
-            Object val = valueIt.next();
-            Iterator keyIt = mapKeys.iterator();
+        for (V val : mapValues) {
 
-            while (keyIt.hasNext()) {
-                Object key = keyIt.next();
+            for (K key : mapKeys) {
                 String comp1 = passedMap.get(key).toString();
                 String comp2 = val.toString();
 
-                if (comp1.equals(comp2)){
+                if (comp1.equals(comp2)) {
                     passedMap.remove(key);
                     mapKeys.remove(key);
-                    sortedMap.put((IPAddress)key, (Integer)val);
+                    sortedMap.put(key, val);
                     break;
                 }
 
