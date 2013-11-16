@@ -99,15 +99,27 @@ public class Master {
                                     baseWorkerPortMap.get(hostAddress)
                             );
 
-                            System.out.format("Worker at IP %s completed the %s phase of the %s MapReduce task\n" +
-                                    "for split %d of file %s!\n",
-                                    hostAddress, completed, mapReduce.toString(),
-                                    split, filename);
-                            System.out.println(mapReduce.toString());
+                            if (scheduler.getTaskDistribution()
+                                    .get(hostAddress)
+                                    .get(mapReduce)
+                                    .get(completed)
+                                    .get(filename)
+                                    .contains(split)) {
+
+                                System.out.format("Worker at IP %s completed the %s phase of the %s MapReduce task\n" +
+                                        "for split %d of file %s!\n",
+                                        hostAddress, completed, mapReduce.toString(),
+                                        split, filename);
+                                System.out.println(mapReduce.toString());
+                                scheduler.schedule(completed, mapReduce, filename, split, address, result);
+                            } else {
+                                System.out.format("Could not find task %s on file %s split %d for job %s in the list" +
+                                        "of assigned tasks for worker %s, must have been cancelled. Ignoring.\n",
+                                        completed, filename, split, mapReduce.getName(), hostAddress);
+                            }
 
                             in.close();
 
-                            scheduler.schedule(completed, mapReduce, filename, split, address, result);
 
                         } else {
                             shutdown();
@@ -244,13 +256,11 @@ public class Master {
     private List<String> findAllJobs() {
         List<String> jobs = new ArrayList<String>();
 
-        Map<String, Map<Command, Map<String, Map<String, List<Integer>>>>> tasks  = scheduler.getTaskDistribution();
+        Map<String, Map<MapReduce, Map<Command, Map<String, List<Integer>>>>> tasks  = scheduler.getTaskDistribution();
 
-        for (Map.Entry<String, Map<Command, Map<String, Map<String, List<Integer>>>>> address : tasks.entrySet()) {
-            for (Map.Entry<Command, Map<String, Map<String, List<Integer>>>> command : address.getValue().entrySet()) {
-                for (Map.Entry<String, Map<String, List<Integer>>> jid : command.getValue().entrySet()) {
-                    jobs.add(jid.getKey());
-                }
+        for (Map.Entry<String, Map<MapReduce, Map<Command, Map<String, List<Integer>>>>> address : tasks.entrySet()) {
+            for (Map.Entry<MapReduce, Map<Command, Map<String, List<Integer>>>> jid : address.getValue().entrySet()) {
+                jobs.add(jid.getKey().getName());
             }
         }
 
@@ -259,14 +269,14 @@ public class Master {
 
     private void findJob(String token) {
 
-        Map<String, Map<Command, Map<String, Map<String, List<Integer>>>>> tasks  = scheduler.getTaskDistribution();
+        Map<String, Map<MapReduce, Map<Command, Map<String, List<Integer>>>>> tasks  = scheduler.getTaskDistribution();
 
         System.out.format("Job %s is being processed as follows:\n", token);
 
-        for (Map.Entry<String, Map<Command, Map<String, Map<String, List<Integer>>>>> address : tasks.entrySet()) {
-            for (Map.Entry<Command, Map<String, Map<String, List<Integer>>>> command : address.getValue().entrySet()) {
-                for (Map.Entry<String, Map<String, List<Integer>>> jid : command.getValue().entrySet()) {
-                    if (jid.getKey().equals(token)) {
+        for (Map.Entry<String, Map<MapReduce, Map<Command, Map<String, List<Integer>>>>> address : tasks.entrySet()) {
+            for (Map.Entry<MapReduce, Map<Command, Map<String, List<Integer>>>> jid : address.getValue().entrySet()) {
+                for (Map.Entry<Command, Map<String, List<Integer>>> command : jid.getValue().entrySet()) {
+                    if (jid.getKey().getName().equals(token)) {
                         System.out.format("\t%s on worker %s\n", command.getKey(), address.getKey());
                     }
                 }
@@ -312,12 +322,7 @@ public class Master {
 
                 addWorker(a, main, b, heartbeat);
 
-                //String response1 = send(a, main, Command.HEARTBEAT, null);
-                String response2 = send(b, heartbeat, Command.HEARTBEAT, (Map<String, String>) null);
-
-                /*System.out.format("worker.Worker at IP %s\n", a.getAddress());
-                System.out.format("\t\ton port %d responded with message %s\n", b.getPort(), response2);*/
-
+                send(b, heartbeat, Command.HEARTBEAT, (Map<String, String>) null);
 
             } catch (Exception e1) {
                 e1.printStackTrace();
@@ -347,6 +352,7 @@ public class Master {
                             System.out.format("Encountered exception while trying to communicate with worker at IP %s and port %d\n",
                                     b.getAddress(), b.getPort());
                             removeWorker(a, b);
+                            rescheduleJobs(a);
                         }
                     }
 
@@ -383,6 +389,44 @@ public class Master {
                 }
             }
         });
+    }
+
+    private void rescheduleJobs(IPAddress worker) {
+        try {
+            for (Map.Entry<MapReduce, Map<Command, Map<String, List<Integer>>>> mapReduce
+                    : scheduler.getTaskDistribution().get(worker.getAddress()).entrySet()) {
+                for (Map.Entry<Command, Map<String, List<Integer>>> command : mapReduce.getValue().entrySet()) {
+                    for (Map.Entry<String, List<Integer>> filename : command.getValue().entrySet()) {
+                        for (Integer split : filename.getValue()) {
+                            switch (command.getKey()) {
+                                case MAP:
+                                    scheduler.map(mapReduce.getKey(), filename.getKey(), split);
+                                case COMBINE:
+                                    for (Map.Entry<MapReduce, Map<Command, Map<String, List<Integer>>>> m
+                                            : scheduler.getCompletedTasks().get(worker.getAddress()).entrySet()) {
+                                        for (Map.Entry<Command, Map<String, List<Integer>>> c : m.getValue().entrySet()) {
+                                            for (Map.Entry<String, List<Integer>> f : c.getValue().entrySet()) {
+                                                for (Integer s : f.getValue()) {
+                                                    scheduler.remap(m.getKey(), f.getKey(), s);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    break;
+                                case REDUCE:
+                                    break;
+                                default:
+                                    throw new IllegalStateException("Invalid task status");
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     /* Starts the file manager and bootstraps the file system */

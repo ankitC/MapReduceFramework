@@ -9,7 +9,7 @@ import java.io.Serializable;
 import java.net.Socket;
 import java.util.List;
 
-public class MapReduce implements Serializable {
+public class MapReduce implements Serializable, Comparable<MapReduce> {
 
     private final String delim;
 
@@ -93,5 +93,10 @@ public class MapReduce implements Serializable {
                 ", files=" + files +
                 ", resultName='" + resultName + '\'' +
                 '}';
+    }
+
+    @Override
+    public int compareTo(MapReduce o) {
+        return name.compareTo(o.name);
     }
 }
