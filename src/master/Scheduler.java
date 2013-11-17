@@ -179,11 +179,12 @@ public class Scheduler {
                                             }
                                         }
                                     }
-                                    System.out.println("Outside");
                                 }
                             }
                         }
                     }
+
+                    System.out.println("Outside");
 
                 }
 

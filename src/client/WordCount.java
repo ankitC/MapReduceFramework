@@ -11,7 +11,7 @@ import java.util.List;
 
 /* Starting off client on the machine */
 
-public class Client {
+public class WordCount {
 
     public static void main(String[] args) throws IOException {
 
